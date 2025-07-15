@@ -17,6 +17,7 @@ public class BicolorGemstonesModule : BaseModule, ICurrencyModule
 
     public BicolorGemstonesModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65072; // Module icon
     }
 
     public override void Initialize()

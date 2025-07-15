@@ -17,6 +17,7 @@ public class TrophyCrystalsModule : BaseModule, ICurrencyModule
 
     public TrophyCrystalsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65071; // Module icon
     }
 
     public override void Initialize()

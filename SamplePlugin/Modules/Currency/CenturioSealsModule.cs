@@ -17,6 +17,7 @@ public class CenturioSealsModule : BaseModule, ICurrencyModule
 
     public CenturioSealsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65065; // Module icon
     }
 
     public override void Initialize()

@@ -26,6 +26,7 @@ public interface IModule
     ModuleType Type { get; }
     ModuleStatus Status { get; }
     bool IsEnabled { get; set; }
+    uint IconId { get; }
     
     void Initialize();
     void Update();

@@ -16,6 +16,7 @@ public class DailyHuntBillsModule : BaseModule
 
     public DailyHuntBillsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60729; // Module icon
     }
 
     public override void Initialize()

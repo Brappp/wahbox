@@ -13,6 +13,7 @@ public class TreasureMapsModule : BaseModule
 
     public TreasureMapsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60758; // Module icon
     }
 
     public override void Initialize()

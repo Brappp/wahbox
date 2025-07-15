@@ -16,6 +16,7 @@ public class TribalQuestsModule : BaseModule
 
     public TribalQuestsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60547; // Module icon - Beast Tribe quest icon
     }
 
     public override void Initialize()

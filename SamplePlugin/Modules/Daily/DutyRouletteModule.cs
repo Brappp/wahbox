@@ -14,6 +14,11 @@ public class DutyRouletteModule : BaseModule
     public override string Name => "Duty Roulette";
     public override ModuleType Type => ModuleType.Daily;
 
+    public DutyRouletteModule(Plugin plugin) : base(plugin)
+    {
+        IconId = 60582; // Duty Roulette icon
+    }
+
     private readonly Dictionary<uint, RouletteInfo> _roulettes = new();
     private DateTime _nextReset;
 
@@ -25,10 +30,6 @@ public class DutyRouletteModule : BaseModule
         public bool IsTracked { get; set; } = true;
         public int RewardTomestones { get; set; }
         public int RewardExp { get; set; }
-    }
-
-    public DutyRouletteModule(Plugin plugin) : base(plugin)
-    {
     }
 
     public override void Initialize()

@@ -19,6 +19,7 @@ public class DomanEnclaveModule : BaseModule
 
     public DomanEnclaveModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60735; // Module icon
     }
 
     public override void Initialize()

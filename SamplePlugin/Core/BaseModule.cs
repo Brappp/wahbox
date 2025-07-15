@@ -9,7 +9,8 @@ public abstract class BaseModule : IModule
     public abstract ModuleType Type { get; }
     public virtual ModuleStatus Status { get; protected set; } = ModuleStatus.Unknown;
     public bool IsEnabled { get; set; } = true;
-
+    public virtual uint IconId { get; protected set; } = 0;
+    
     protected readonly Plugin Plugin;
 
     protected BaseModule(Plugin plugin)

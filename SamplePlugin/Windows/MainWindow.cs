@@ -178,7 +178,6 @@ public class MainWindow : Window, IDisposable
     {
         var status = module.Status;
         var statusColor = GetStatusColor(status);
-        var statusIcon = GetStatusIcon(status);
         
         ImGui.PushID(module.Name);
         
@@ -191,10 +190,40 @@ public class MainWindow : Window, IDisposable
         // Draw on top of the invisible button
         ImGui.SetCursorPos(startPos);
         
-        // Module name with status icon
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.TextColored(statusColor, statusIcon);
-        ImGui.PopFont();
+        // Module icon
+        if (module.IconId > 0)
+        {
+            try
+            {
+                var icon = Plugin.TextureProvider.GetFromGameIcon(module.IconId).GetWrapOrEmpty();
+                if (icon != null)
+                {
+                    ImGui.Image(icon.ImGuiHandle, new Vector2(ImGui.GetTextLineHeight(), ImGui.GetTextLineHeight()));
+                }
+                else
+                {
+                    // Fallback to type icon if texture fails
+                    ImGui.PushFont(UiBuilder.IconFont);
+                    ImGui.Text(GetTypeIcon(module.Type));
+                    ImGui.PopFont();
+                }
+            }
+            catch
+            {
+                // If icon fails to load, use type icon
+                ImGui.PushFont(UiBuilder.IconFont);
+                ImGui.Text(GetTypeIcon(module.Type));
+                ImGui.PopFont();
+            }
+        }
+        else
+        {
+            // Use type icon if no specific icon
+            ImGui.PushFont(UiBuilder.IconFont);
+            ImGui.Text(GetTypeIcon(module.Type));
+            ImGui.PopFont();
+        }
+        
         ImGui.SameLine();
         ImGui.Text(module.Name);
         

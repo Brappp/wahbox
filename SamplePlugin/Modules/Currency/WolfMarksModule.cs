@@ -17,6 +17,7 @@ public class WolfMarksModule : BaseModule, ICurrencyModule
 
     public WolfMarksModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65070; // Module icon
     }
 
     public override void Initialize()

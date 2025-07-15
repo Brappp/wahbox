@@ -26,6 +26,7 @@ public class WondrousTailsModule : BaseModule
 
     public WondrousTailsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60732; // Module icon
     }
 
     public override void Initialize()

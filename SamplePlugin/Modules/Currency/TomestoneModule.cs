@@ -17,6 +17,7 @@ public class TomestoneModule : BaseModule, ICurrencyModule
 
     public TomestoneModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65049; // Module icon
     }
 
     public override void Initialize()

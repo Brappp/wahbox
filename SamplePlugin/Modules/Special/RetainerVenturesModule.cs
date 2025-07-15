@@ -13,6 +13,7 @@ public class RetainerVenturesModule : BaseModule
 
     public RetainerVenturesModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60425; // Module icon
     }
 
     public override void Initialize()

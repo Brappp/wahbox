@@ -17,6 +17,7 @@ public class SkybuildersScripModule : BaseModule, ICurrencyModule
 
     public SkybuildersScripModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65075; // Module icon
     }
 
     public override void Initialize()

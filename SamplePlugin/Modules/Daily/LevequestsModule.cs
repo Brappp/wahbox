@@ -16,6 +16,7 @@ public class LevequestsModule : BaseModule
 
     public LevequestsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60730; // Module icon
     }
 
     public override void Initialize()

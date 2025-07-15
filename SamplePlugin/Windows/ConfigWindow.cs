@@ -20,7 +20,6 @@ public class ConfigWindow : Window, IDisposable
 
     public ConfigWindow(Plugin plugin) : base("Wahdori Settings###WahdoriConfig")
     {
-        Size = new Vector2(400, 350);
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(350, 300),
@@ -234,6 +233,18 @@ public class ConfigWindow : Window, IDisposable
             {
                 Configuration.OverlaySettings.ShowBackground = showBackground;
                 Configuration.Save();
+            }
+            
+            // Text Labels
+            var showText = Configuration.OverlaySettings.ShowText;
+            if (ImGui.Checkbox("Show Text Labels", ref showText))
+            {
+                Configuration.OverlaySettings.ShowText = showText;
+                Configuration.Save();
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("When disabled, shows only icons with numbers/status indicators");
             }
             
             ImGui.Spacing();

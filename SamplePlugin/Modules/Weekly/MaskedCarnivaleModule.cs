@@ -15,6 +15,7 @@ public class MaskedCarnivaleModule : BaseModule
 
     public MaskedCarnivaleModule(Plugin plugin) : base(plugin)
     {
+        IconId = 62130; // Module icon
     }
 
     public override void Initialize()

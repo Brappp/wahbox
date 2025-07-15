@@ -28,6 +28,7 @@ public class CustomDeliveryModule : BaseModule
 
     public CustomDeliveryModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60734; // Module icon
     }
 
     public override void Initialize()

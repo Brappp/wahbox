@@ -17,6 +17,7 @@ public class PoeticTomestoneModule : BaseModule, ICurrencyModule
 
     public PoeticTomestoneModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65049; // Module icon
     }
 
     public override void Initialize()

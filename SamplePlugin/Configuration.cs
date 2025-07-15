@@ -129,6 +129,7 @@ public class OverlaySettings
     public bool Enabled { get; set; } = true;
     public float Opacity { get; set; } = 0.8f;
     public bool ShowBackground { get; set; } = true;
+    public bool ShowText { get; set; } = true;
     public bool ShowCurrencyWarnings { get; set; } = true;
     public bool ShowDailyTasks { get; set; } = true;
     public bool ShowWeeklyTasks { get; set; } = true;

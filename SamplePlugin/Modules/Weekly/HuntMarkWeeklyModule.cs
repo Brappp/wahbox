@@ -15,6 +15,7 @@ public class HuntMarkWeeklyModule : BaseModule
 
     public HuntMarkWeeklyModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60729; // Module icon
     }
 
     public override void Initialize()

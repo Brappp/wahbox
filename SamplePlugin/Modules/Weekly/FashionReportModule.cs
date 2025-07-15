@@ -27,6 +27,7 @@ public class FashionReportModule : BaseModule
 
     public FashionReportModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60810; // Module icon
     }
 
     public override void Initialize()

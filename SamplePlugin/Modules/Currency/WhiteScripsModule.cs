@@ -17,6 +17,7 @@ public class WhiteScripsModule : BaseModule, ICurrencyModule
 
     public WhiteScripsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65073; // Module icon
     }
 
     public override void Initialize()

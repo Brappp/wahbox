@@ -17,6 +17,7 @@ public class SackOfNutsModule : BaseModule, ICurrencyModule
 
     public SackOfNutsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65066; // Module icon
     }
 
     public override void Initialize()

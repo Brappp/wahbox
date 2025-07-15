@@ -19,6 +19,7 @@ public class GrandCompanyModule : BaseModule, ICurrencyModule
 
     public GrandCompanyModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65063; // Module icon
     }
 
     public override void Initialize()

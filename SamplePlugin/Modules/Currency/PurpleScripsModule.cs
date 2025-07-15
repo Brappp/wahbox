@@ -17,6 +17,7 @@ public class PurpleScripsModule : BaseModule, ICurrencyModule
 
     public PurpleScripsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65074; // Module icon
     }
 
     public override void Initialize()

@@ -18,6 +18,7 @@ public class JumboCactpotModule : BaseModule
 
     public JumboCactpotModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60810; // Module icon
     }
 
     public override void Initialize()

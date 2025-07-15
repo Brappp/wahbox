@@ -17,6 +17,7 @@ public class AlliedSealsModule : BaseModule, ICurrencyModule
 
     public AlliedSealsModule(Plugin plugin) : base(plugin)
     {
+        IconId = 65064; // Module icon
     }
 
     public override void Initialize()

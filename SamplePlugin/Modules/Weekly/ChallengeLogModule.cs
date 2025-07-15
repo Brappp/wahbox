@@ -15,6 +15,7 @@ public class ChallengeLogModule : BaseModule
 
     public ChallengeLogModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60733; // Module icon
     }
 
     public override void Initialize()

@@ -16,6 +16,7 @@ public class GrandCompanySupplyModule : BaseModule
 
     public GrandCompanySupplyModule(Plugin plugin) : base(plugin)
     {
+        IconId = 60582; // Module icon
     }
 
     public override void Initialize()
