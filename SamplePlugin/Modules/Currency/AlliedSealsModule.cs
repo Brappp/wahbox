@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace SamplePlugin.Modules.Currency;
 
-public class AlliedSealsModule : BaseModule
+public class AlliedSealsModule : BaseModule, ICurrencyModule
 {
     public override string Name => "Allied Seals";
     public override ModuleType Type => ModuleType.Currency;

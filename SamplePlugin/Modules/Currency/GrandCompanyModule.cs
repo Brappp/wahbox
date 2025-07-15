@@ -9,7 +9,7 @@ using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 
 namespace SamplePlugin.Modules.Currency;
 
-public class GrandCompanyModule : BaseModule
+public class GrandCompanyModule : BaseModule, ICurrencyModule
 {
     public override string Name => "Grand Company Seals";
     public override ModuleType Type => ModuleType.Currency;

@@ -5,6 +5,7 @@ using System.IO;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using SamplePlugin.Windows;
+using SamplePlugin.Core.Interfaces;
 using ECommons;
 using ECommons.Configuration;
 using ECommons.Schedulers;
@@ -33,10 +34,10 @@ public sealed class Plugin : IDalamudPlugin
     internal static Plugin Instance { get; private set; } = null!;
     internal Core.ModuleManager ModuleManager { get; private set; } = null!;
     internal Systems.OverlayManager OverlayManager { get; private set; } = null!;
+    internal ILocalizationManager LocalizationManager { get; private set; } = null!;
     internal Systems.PayloadSystem PayloadSystem { get; private set; } = null!;
     internal Systems.TeleportManager TeleportManager { get; private set; } = null!;
     internal Systems.NotificationManager NotificationManager { get; private set; } = null!;
-    internal Systems.LocalizationManager LocalizationManager { get; private set; } = null!;
 
     private const string MainCommand = "/wahdori";
     private const string ConfigCommand = "/wdcfg";
@@ -102,10 +103,10 @@ public sealed class Plugin : IDalamudPlugin
         NotificationManager = new Systems.NotificationManager();
         LocalizationManager = new Systems.LocalizationManager();
         ModuleManager = new Core.ModuleManager(this);
-        OverlayManager = new Systems.OverlayManager();
+        OverlayManager = new Systems.OverlayManager(this);
         
         // Initialize localization first
-        LocalizationManager.Initialize();
+        // (Localization is simple now, no initialization needed)
         
         // Initialize notification system
         NotificationManager.Initialize();
@@ -228,7 +229,7 @@ public sealed class Plugin : IDalamudPlugin
         // Dispose systems in reverse order
         OverlayManager?.Dispose();
         ModuleManager?.Dispose();
-        LocalizationManager?.Dispose();
+        // LocalizationManager doesn't need disposal
         NotificationManager?.Dispose();
         TeleportManager?.Dispose();
         PayloadSystem?.Dispose();

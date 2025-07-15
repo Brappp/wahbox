@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace SamplePlugin.Modules.Currency;
 
-public class WolfMarksModule : BaseModule
+public class WolfMarksModule : BaseModule, ICurrencyModule
 {
     public override string Name => "Wolf Marks";
     public override ModuleType Type => ModuleType.Currency;

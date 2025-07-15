@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace SamplePlugin.Modules.Currency;
 
-public class BicolorGemstonesModule : BaseModule
+public class BicolorGemstonesModule : BaseModule, ICurrencyModule
 {
     public override string Name => "Bicolor Gemstones";
     public override ModuleType Type => ModuleType.Currency;

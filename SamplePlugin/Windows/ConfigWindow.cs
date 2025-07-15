@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Linq;
 using System.Numerics;
 using Dalamud.Interface.Windowing;
 using ImGuiNET;
 using Dalamud.Interface.Utility;
-using Dalamud.Interface.Utility.Raii;
+using Dalamud.Interface.Components;
+using SamplePlugin.Core.Interfaces;
 
 namespace SamplePlugin.Windows;
 
@@ -11,11 +13,18 @@ public class ConfigWindow : Window, IDisposable
 {
     private Configuration Configuration;
     private Plugin Plugin;
+    private string _moduleSearch = string.Empty;
+    private ModuleType? _selectedModuleType = null;
+    private IModule? _selectedModule = null;
 
-    public ConfigWindow(Plugin plugin) : base("Wahdori Configuration###WahdoriConfig")
+    public ConfigWindow(Plugin plugin) : base("Wahdori Settings###WahdoriConfig")
     {
-        Size = new Vector2(600, 400);
-        SizeCondition = ImGuiCond.FirstUseEver;
+        Size = new Vector2(500, 450);
+        SizeConstraints = new WindowSizeConstraints
+        {
+            MinimumSize = new Vector2(450, 400),
+            MaximumSize = new Vector2(600, 600)
+        };
 
         Configuration = plugin.Configuration;
         Plugin = plugin;
@@ -25,41 +34,30 @@ public class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
+        // Compact tab bar with icons
         if (ImGui.BeginTabBar("ConfigTabs"))
         {
-            if (ImGui.BeginTabItem("General"))
+            if (ImGui.BeginTabItem("⚙ General"))
             {
                 DrawGeneralSettings();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Currency"))
-            {
-                DrawCurrencySettings();
-                ImGui.EndTabItem();
-            }
-
-            if (ImGui.BeginTabItem("Tasks"))
-            {
-                DrawTaskSettings();
-                ImGui.EndTabItem();
-            }
-
-            if (ImGui.BeginTabItem("Modules"))
+            if (ImGui.BeginTabItem("📦 Modules"))
             {
                 DrawModulesSettings();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Overlays"))
+            if (ImGui.BeginTabItem("🔲 Overlays"))
             {
                 DrawOverlaySettings();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Notifications"))
+            if (ImGui.BeginTabItem("🔔 Alerts"))
             {
-                DrawNotificationSettings();
+                DrawAlertSettings();
                 ImGui.EndTabItem();
             }
 
@@ -69,284 +67,331 @@ public class ConfigWindow : Window, IDisposable
 
     private void DrawGeneralSettings()
     {
-        ImGui.TextWrapped("General settings for Wahdori");
+        ImGui.TextWrapped("General Settings");
         ImGui.Separator();
-
-        var configValue = Configuration.SomePropertyToBeSavedAndWithADefault;
-        if (ImGui.Checkbox("Example Setting", ref configValue))
-        {
-            Configuration.SomePropertyToBeSavedAndWithADefault = configValue;
-            Configuration.Save();
-        }
-
         ImGui.Spacing();
 
-        if (ImGui.CollapsingHeader("UI Settings"))
+        // Window Settings
+        if (ImGui.CollapsingHeader("Window Settings", ImGuiTreeNodeFlags.DefaultOpen))
         {
+            ImGui.Indent();
+            
             var opacity = Configuration.UISettings.WindowOpacity;
-            if (ImGui.SliderFloat("Window Opacity", ref opacity, 0.1f, 1.0f))
+            ImGui.SetNextItemWidth(200);
+            if (ImGui.SliderFloat("Window Opacity", ref opacity, 0.1f, 1.0f, "%.1f"))
             {
                 Configuration.UISettings.WindowOpacity = opacity;
                 Configuration.Save();
             }
-
-            var compactMode = Configuration.UISettings.UseCompactMode;
-            if (ImGui.Checkbox("Use Compact Mode", ref compactMode))
+            
+            var hideInCombat = Configuration.UISettings.HideInCombat;
+            if (ImGui.Checkbox("Hide Windows in Combat", ref hideInCombat))
             {
-                Configuration.UISettings.UseCompactMode = compactMode;
+                Configuration.UISettings.HideInCombat = hideInCombat;
                 Configuration.Save();
             }
-
+            
+            var hideInDuty = Configuration.UISettings.HideInDuty;
+            if (ImGui.Checkbox("Hide Windows in Duty", ref hideInDuty))
+            {
+                Configuration.UISettings.HideInDuty = hideInDuty;
+                Configuration.Save();
+            }
+            
+            ImGui.Unindent();
+        }
+        
+        // Display Settings
+        if (ImGui.CollapsingHeader("Display Settings"))
+        {
+            ImGui.Indent();
+            
             var sortByStatus = Configuration.UISettings.SortByStatus;
             if (ImGui.Checkbox("Sort Modules by Status", ref sortByStatus))
             {
                 Configuration.UISettings.SortByStatus = sortByStatus;
                 Configuration.Save();
             }
+            
+            var showDisabledModules = Configuration.UISettings.ShowDisabledModules;
+            if (ImGui.Checkbox("Show Disabled Modules", ref showDisabledModules))
+            {
+                Configuration.UISettings.ShowDisabledModules = showDisabledModules;
+                Configuration.Save();
+            }
+            
+            ImGui.Unindent();
         }
-    }
-
-    private void DrawCurrencySettings()
-    {
-        ImGui.TextWrapped("Configure currency tracking and alerts");
-        ImGui.Separator();
-
-        var showOverlay = Configuration.CurrencySettings.ShowCurrencyOverlay;
-        if (ImGui.Checkbox("Show Currency Overlay", ref showOverlay))
+        
+        // Language Settings
+        if (ImGui.CollapsingHeader("Language"))
         {
-            Configuration.CurrencySettings.ShowCurrencyOverlay = showOverlay;
-            Configuration.Save();
-        }
-
-        var hideInDuties = Configuration.CurrencySettings.HideInDuties;
-        if (ImGui.Checkbox("Hide in Duties", ref hideInDuties))
-        {
-            Configuration.CurrencySettings.HideInDuties = hideInDuties;
-            Configuration.Save();
-        }
-
-        var chatWarning = Configuration.CurrencySettings.ChatWarning;
-        if (ImGui.Checkbox("Enable Chat Warnings", ref chatWarning))
-        {
-            Configuration.CurrencySettings.ChatWarning = chatWarning;
-            Configuration.Save();
-        }
-    }
-
-    private void DrawTaskSettings()
-    {
-        ImGui.TextWrapped("Configure task tracking");
-        ImGui.Separator();
-
-        var todoEnabled = Configuration.TodoSettings.Enabled;
-        if (ImGui.Checkbox("Enable Todo List Overlay", ref todoEnabled))
-        {
-            Configuration.TodoSettings.Enabled = todoEnabled;
-            Configuration.Save();
-        }
-
-        var hideInDuties = Configuration.TodoSettings.HideInDuties;
-        if (ImGui.Checkbox("Hide in Duties", ref hideInDuties))
-        {
-            Configuration.TodoSettings.HideInDuties = hideInDuties;
-            Configuration.Save();
-        }
-
-        var hideInQuests = Configuration.TodoSettings.HideDuringQuests;
-        if (ImGui.Checkbox("Hide During Quests", ref hideInQuests))
-        {
-            Configuration.TodoSettings.HideDuringQuests = hideInQuests;
-            Configuration.Save();
+            ImGui.Indent();
+            
+            var currentLang = Configuration.Language;
+            ImGui.SetNextItemWidth(150);
+            if (ImGui.BeginCombo("Language", currentLang))
+            {
+                foreach (var lang in new[] { "English", "日本語", "Deutsch", "Français" })
+                {
+                    if (ImGui.Selectable(lang, lang == currentLang))
+                    {
+                        Configuration.Language = lang;
+                        Configuration.Save();
+                        Plugin.LocalizationManager.SetLanguage(lang);
+                    }
+                }
+                ImGui.EndCombo();
+            }
+            
+            ImGui.Unindent();
         }
     }
 
     private void DrawModulesSettings()
     {
-        ImGui.TextWrapped("Configure individual modules");
+        // Module type filter
+        ImGui.SetNextItemWidth(150);
+        if (ImGui.BeginCombo("Filter", _selectedModuleType?.ToString() ?? "All Types"))
+        {
+            if (ImGui.Selectable("All Types", _selectedModuleType == null))
+                _selectedModuleType = null;
+                
+            foreach (ModuleType type in Enum.GetValues<ModuleType>())
+            {
+                if (ImGui.Selectable(type.ToString(), _selectedModuleType == type))
+                    _selectedModuleType = type;
+            }
+            ImGui.EndCombo();
+        }
+        
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(200);
+        ImGui.InputTextWithHint("##ModuleSearch", "Search modules...", ref _moduleSearch, 100);
+        
         ImGui.Separator();
-
-        // Group modules by type
-        if (ImGui.CollapsingHeader("Currency Modules"))
+        
+        // Module list and configuration
+        var childHeight = ImGui.GetContentRegionAvail().Y;
+        
+        // Left panel - module list
+        if (ImGui.BeginChild("ModuleList", new Vector2(200, childHeight), true))
         {
-            foreach (var module in Plugin.ModuleManager.GetModules())
+            var modules = Plugin.ModuleManager.GetModules()
+                .Where(m => _selectedModuleType == null || m.Type == _selectedModuleType)
+                .Where(m => string.IsNullOrEmpty(_moduleSearch) || 
+                           m.Name.Contains(_moduleSearch, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(m => m.Type)
+                .ThenBy(m => m.Name);
+                
+            foreach (var module in modules)
             {
-                if (module.Type == Core.Interfaces.ModuleType.Currency)
+                var isSelected = _selectedModule == module;
+                var isEnabled = module.IsEnabled;
+                
+                // Module item with checkbox
+                ImGui.PushID(module.Name);
+                
+                if (ImGui.Checkbox("##Enable", ref isEnabled))
                 {
-                    ImGui.PushID(module.Name);
-                    
-                    var enabled = module.IsEnabled;
-                    if (ImGui.Checkbox($"{module.Name}", ref enabled))
-                    {
-                        module.IsEnabled = enabled;
-                        Configuration.Save();
-                    }
-                    
-                    ImGui.SameLine();
-                    ImGui.TextDisabled($"({module.Status})");
-                    
-                    if (ImGui.TreeNode($"Settings##{module.Name}"))
-                    {
-                        module.DrawConfig();
-                        ImGui.TreePop();
-                    }
-                    
-                    ImGui.PopID();
+                    module.IsEnabled = isEnabled;
+                    Configuration.Save();
                 }
+                
+                ImGui.SameLine();
+                
+                if (ImGui.Selectable(module.Name, isSelected))
+                {
+                    _selectedModule = module;
+                }
+                
+                ImGui.PopID();
             }
         }
-
-        if (ImGui.CollapsingHeader("Daily Modules"))
+        ImGui.EndChild();
+        
+        ImGui.SameLine();
+        
+        // Right panel - module configuration
+        if (ImGui.BeginChild("ModuleConfig", new Vector2(0, childHeight), true))
         {
-            foreach (var module in Plugin.ModuleManager.GetModules())
+            if (_selectedModule != null)
             {
-                if (module.Type == Core.Interfaces.ModuleType.Daily)
-                {
-                    ImGui.PushID(module.Name);
-                    
-                    var enabled = module.IsEnabled;
-                    if (ImGui.Checkbox($"{module.Name}", ref enabled))
-                    {
-                        module.IsEnabled = enabled;
-                        Configuration.Save();
-                    }
-                    
-                    ImGui.SameLine();
-                    ImGui.TextDisabled($"({module.Status})");
-                    
-                    if (ImGui.TreeNode($"Settings##{module.Name}"))
-                    {
-                        module.DrawConfig();
-                        ImGui.TreePop();
-                    }
-                    
-                    ImGui.PopID();
-                }
+                ImGui.Text($"{_selectedModule.Name} Configuration");
+                ImGui.Text($"Type: {_selectedModule.Type}");
+                ImGui.Text($"Status: {_selectedModule.Status}");
+                ImGui.Separator();
+                
+                _selectedModule.DrawConfig();
+            }
+            else
+            {
+                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "Select a module to configure");
             }
         }
-
-        if (ImGui.CollapsingHeader("Weekly Modules"))
-        {
-            foreach (var module in Plugin.ModuleManager.GetModules())
-            {
-                if (module.Type == Core.Interfaces.ModuleType.Weekly)
-                {
-                    ImGui.PushID(module.Name);
-                    
-                    var enabled = module.IsEnabled;
-                    if (ImGui.Checkbox($"{module.Name}", ref enabled))
-                    {
-                        module.IsEnabled = enabled;
-                        Configuration.Save();
-                    }
-                    
-                    ImGui.SameLine();
-                    ImGui.TextDisabled($"({module.Status})");
-                    
-                    if (ImGui.TreeNode($"Settings##{module.Name}"))
-                    {
-                        module.DrawConfig();
-                        ImGui.TreePop();
-                    }
-                    
-                    ImGui.PopID();
-                }
-            }
-        }
+        ImGui.EndChild();
     }
 
     private void DrawOverlaySettings()
     {
-        ImGui.TextWrapped("Configure overlay positions and appearance");
+        ImGui.TextWrapped("Overlay Settings");
         ImGui.Separator();
-
-        // Add OverlayManager configuration
-        Plugin.OverlayManager.DrawConfiguration();
-
-        ImGui.Separator();
-
-        if (ImGui.CollapsingHeader("Currency Overlay"))
+        ImGui.Spacing();
+        
+        // Global overlay settings
+        var overlaysEnabled = Configuration.OverlaySettings.Enabled;
+        if (ImGui.Checkbox("Enable Overlays", ref overlaysEnabled))
         {
-            var pos = Configuration.CurrencySettings.OverlayPosition;
-            if (ImGui.DragFloat2("Position", ref pos))
-            {
-                Configuration.CurrencySettings.OverlayPosition = pos;
-                Configuration.Save();
-            }
-
-            var size = Configuration.CurrencySettings.OverlaySize;
-            if (ImGui.DragFloat2("Size", ref size))
-            {
-                Configuration.CurrencySettings.OverlaySize = size;
-                Configuration.Save();
-            }
+            Configuration.OverlaySettings.Enabled = overlaysEnabled;
+            Configuration.Save();
         }
-
-        if (ImGui.CollapsingHeader("Todo List Overlay"))
+        
+        if (overlaysEnabled)
         {
-            var pos = Configuration.TodoSettings.Position;
-            if (ImGui.DragFloat2("Position", ref pos))
+            ImGui.Spacing();
+            
+            // Opacity
+            var opacity = Configuration.OverlaySettings.Opacity;
+            ImGui.SetNextItemWidth(200);
+            if (ImGui.SliderFloat("Overlay Opacity", ref opacity, 0.1f, 1.0f, "%.1f"))
             {
-                Configuration.TodoSettings.Position = pos;
+                Configuration.OverlaySettings.Opacity = opacity;
                 Configuration.Save();
             }
-
-            var size = Configuration.TodoSettings.Size;
-            if (ImGui.DragFloat2("Size", ref size))
+            
+            // Background
+            var showBackground = Configuration.OverlaySettings.ShowBackground;
+            if (ImGui.Checkbox("Show Background", ref showBackground))
             {
-                Configuration.TodoSettings.Size = size;
+                Configuration.OverlaySettings.ShowBackground = showBackground;
                 Configuration.Save();
             }
-        }
-
-        if (ImGui.CollapsingHeader("Timer Overlays"))
-        {
-            var dailyPos = Configuration.TimerSettings.DailyTimerPosition;
-            if (ImGui.DragFloat2("Daily Timer Position", ref dailyPos))
+            
+            ImGui.Spacing();
+            ImGui.Separator();
+            ImGui.Spacing();
+            
+            // Individual overlay settings
+            if (ImGui.CollapsingHeader("Currency Warnings Overlay"))
             {
-                Configuration.TimerSettings.DailyTimerPosition = dailyPos;
-                Configuration.Save();
+                ImGui.Indent();
+                
+                var showCurrency = Configuration.OverlaySettings.ShowCurrencyWarnings;
+                if (ImGui.Checkbox("Show Currency Warnings", ref showCurrency))
+                {
+                    Configuration.OverlaySettings.ShowCurrencyWarnings = showCurrency;
+                    Configuration.Save();
+                }
+                
+                ImGui.Unindent();
             }
-
-            var weeklyPos = Configuration.TimerSettings.WeeklyTimerPosition;
-            if (ImGui.DragFloat2("Weekly Timer Position", ref weeklyPos))
+            
+            if (ImGui.CollapsingHeader("Daily Tasks Overlay"))
             {
-                Configuration.TimerSettings.WeeklyTimerPosition = weeklyPos;
-                Configuration.Save();
+                ImGui.Indent();
+                
+                var showDaily = Configuration.OverlaySettings.ShowDailyTasks;
+                if (ImGui.Checkbox("Show Daily Tasks", ref showDaily))
+                {
+                    Configuration.OverlaySettings.ShowDailyTasks = showDaily;
+                    Configuration.Save();
+                }
+                
+                ImGui.Unindent();
+            }
+            
+            if (ImGui.CollapsingHeader("Weekly Tasks Overlay"))
+            {
+                ImGui.Indent();
+                
+                var showWeekly = Configuration.OverlaySettings.ShowWeeklyTasks;
+                if (ImGui.Checkbox("Show Weekly Tasks", ref showWeekly))
+                {
+                    Configuration.OverlaySettings.ShowWeeklyTasks = showWeekly;
+                    Configuration.Save();
+                }
+                
+                ImGui.Unindent();
             }
         }
     }
 
-    private void DrawNotificationSettings()
+    private void DrawAlertSettings()
     {
-        ImGui.TextWrapped("Configure notifications");
+        ImGui.TextWrapped("Alert Settings");
         ImGui.Separator();
-
-        var chatNotif = Configuration.NotificationSettings.EnableChatNotifications;
-        if (ImGui.Checkbox("Enable Chat Notifications", ref chatNotif))
+        ImGui.Spacing();
+        
+        // Chat alerts
+        if (ImGui.CollapsingHeader("Chat Alerts", ImGuiTreeNodeFlags.DefaultOpen))
         {
-            Configuration.NotificationSettings.EnableChatNotifications = chatNotif;
-            Configuration.Save();
+            ImGui.Indent();
+            
+            var chatAlerts = Configuration.NotificationSettings.ChatNotifications;
+            if (ImGui.Checkbox("Enable Chat Notifications", ref chatAlerts))
+            {
+                Configuration.NotificationSettings.ChatNotifications = chatAlerts;
+                Configuration.Save();
+            }
+            
+            if (chatAlerts)
+            {
+                var suppressInDuty = Configuration.NotificationSettings.SuppressInDuty;
+                if (ImGui.Checkbox("Suppress in Duty", ref suppressInDuty))
+                {
+                    Configuration.NotificationSettings.SuppressInDuty = suppressInDuty;
+                    Configuration.Save();
+                }
+                
+                var cooldown = Configuration.NotificationSettings.NotificationCooldown;
+                ImGui.SetNextItemWidth(200);
+                if (ImGui.SliderInt("Notification Cooldown (min)", ref cooldown, 1, 60))
+                {
+                    Configuration.NotificationSettings.NotificationCooldown = cooldown;
+                    Configuration.Save();
+                }
+            }
+            
+            ImGui.Unindent();
         }
-
-        var toastNotif = Configuration.NotificationSettings.EnableToastNotifications;
-        if (ImGui.Checkbox("Enable Toast Notifications", ref toastNotif))
+        
+        // Sound alerts
+        if (ImGui.CollapsingHeader("Sound Alerts"))
         {
-            Configuration.NotificationSettings.EnableToastNotifications = toastNotif;
-            Configuration.Save();
+            ImGui.Indent();
+            
+            var soundAlerts = Configuration.NotificationSettings.SoundNotifications;
+            if (ImGui.Checkbox("Enable Sound Notifications", ref soundAlerts))
+            {
+                Configuration.NotificationSettings.SoundNotifications = soundAlerts;
+                Configuration.Save();
+            }
+            
+            ImGui.Unindent();
         }
-
-        var soundNotif = Configuration.NotificationSettings.EnableSoundNotifications;
-        if (ImGui.Checkbox("Enable Sound Notifications", ref soundNotif))
+        
+        // Module-specific settings
+        if (ImGui.CollapsingHeader("Module Alert Settings"))
         {
-            Configuration.NotificationSettings.EnableSoundNotifications = soundNotif;
-            Configuration.Save();
-        }
-
-        var threshold = Configuration.NotificationSettings.NotificationThreshold;
-        if (ImGui.SliderInt("Notification Threshold %", ref threshold, 0, 100))
-        {
-            Configuration.NotificationSettings.NotificationThreshold = threshold;
-            Configuration.Save();
+            ImGui.Indent();
+            ImGui.TextWrapped("Configure alerts for specific module types:");
+            ImGui.Spacing();
+            
+            var currencyAlerts = Configuration.NotificationSettings.CurrencyWarningAlerts;
+            if (ImGui.Checkbox("Currency Cap Warnings", ref currencyAlerts))
+            {
+                Configuration.NotificationSettings.CurrencyWarningAlerts = currencyAlerts;
+                Configuration.Save();
+            }
+            
+            var taskCompleteAlerts = Configuration.NotificationSettings.TaskCompletionAlerts;
+            if (ImGui.Checkbox("Task Completion Alerts", ref taskCompleteAlerts))
+            {
+                Configuration.NotificationSettings.TaskCompletionAlerts = taskCompleteAlerts;
+                Configuration.Save();
+            }
+            
+            ImGui.Unindent();
         }
     }
 }

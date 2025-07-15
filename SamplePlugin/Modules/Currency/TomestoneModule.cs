@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace SamplePlugin.Modules.Currency;
 
-public class TomestoneModule : BaseModule
+public class TomestoneModule : BaseModule, ICurrencyModule
 {
     public override string Name => "Tomestone Tracker";
     public override ModuleType Type => ModuleType.Currency;

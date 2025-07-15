@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace SamplePlugin.Modules.Currency;
 
-public class WhiteScripsModule : BaseModule
+public class WhiteScripsModule : BaseModule, ICurrencyModule
 {
     public override string Name => "White Scrips";
     public override ModuleType Type => ModuleType.Currency;

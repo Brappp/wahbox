@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Numerics;
-using Dalamud.Interface.Textures.TextureWraps;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Components;
@@ -12,34 +11,25 @@ namespace SamplePlugin.Windows;
 
 public class MainWindow : Window, IDisposable
 {
-    private string GoatImagePath;
-    private IDalamudTextureWrap? GoatImage;
     private Plugin Plugin;
-    
     private string _searchFilter = string.Empty;
     private bool _showCompleted = true;
     private ModuleType? _filterType = null;
 
     public MainWindow(Plugin plugin, string goatImagePath) : base("Wahdori##Main")
     {
-        GoatImagePath = goatImagePath;
         Plugin = plugin;
         
-        // Compact window size
+        // Small, focused window size
         Size = new Vector2(320, 450);
         SizeConstraints = new WindowSizeConstraints
         {
             MinimumSize = new Vector2(280, 350),
             MaximumSize = new Vector2(400, 600)
         };
-        
-        Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
     }
 
-    public void Dispose()
-    {
-        GoatImage?.Dispose();
-    }
+    public void Dispose() { }
 
     public override void Draw()
     {
@@ -50,25 +40,9 @@ public class MainWindow : Window, IDisposable
 
     private void DrawHeader()
     {
-        // Load goat image if needed
-        if (GoatImage == null)
-        {
-            var goatTex = Plugin.TextureProvider.GetFromFile(GoatImagePath);
-            if (goatTex != null && goatTex.TryGetWrap(out var wrap, out _))
-            {
-                GoatImage = wrap;
-            }
-        }
-
-        // Title with goat icon
-        if (GoatImage != null)
-        {
-            ImGui.Image(GoatImage.ImGuiHandle, new Vector2(20, 20));
-            ImGui.SameLine();
-        }
+        // Title and quick stats on same line
         ImGui.Text("Wahdori");
         
-        // Quick stats
         ImGui.SameLine();
         var modules = Plugin.ModuleManager.GetModules().Where(m => m.IsEnabled).ToList();
         var warnings = modules.Count(m => m.Type == ModuleType.Currency && m.Status == ModuleStatus.InProgress);
@@ -174,12 +148,51 @@ public class MainWindow : Window, IDisposable
         
         try
         {
-            DrawModuleCompactStatus(module);
+            // Currency modules show count/threshold
+            if (module.Type == ModuleType.Currency)
+            {
+                if (module is Modules.Currency.TomestoneModule tomestones)
+                {
+                    var currencies = tomestones.GetTrackedCurrencies();
+                    foreach (var currency in currencies.Where(c => c.Enabled && c.HasWarning))
+                    {
+                        ImGui.TextColored(statusColor, $"{currency.CurrentCount:N0}/{currency.Threshold:N0}");
+                        break; // Only show first warning
+                    }
+                }
+                else if (module is Modules.Currency.GrandCompanyModule gc)
+                {
+                    var currencies = gc.GetTrackedCurrencies();
+                    var active = currencies.FirstOrDefault(c => c.Enabled && c.CurrentCount > 0);
+                    if (active != null)
+                    {
+                        var color = active.HasWarning ? new Vector4(1, 0.5f, 0, 1) : new Vector4(0.7f, 0.7f, 0.7f, 1);
+                        ImGui.TextColored(color, $"{active.CurrentCount:N0}/{active.Threshold:N0}");
+                    }
+                }
+                // Add similar compact displays for other currency modules
+            }
+            // Daily/Weekly modules show completion status
+            else if (module.Type == ModuleType.Daily || module.Type == ModuleType.Weekly)
+            {
+                if (module is Modules.Daily.DutyRouletteModule roulette)
+                {
+                    // Show completed count
+                    ImGui.TextColored(statusColor, GetStatusText(status));
+                }
+                else if (module is Modules.Weekly.WondrousTailsModule wt)
+                {
+                    ImGui.TextColored(statusColor, GetStatusText(status));
+                }
+                else
+                {
+                    ImGui.TextColored(statusColor, GetStatusText(status));
+                }
+            }
         }
-        catch (Exception ex)
+        catch
         {
-            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Error");
-            Plugin.Log.Error(ex, $"Error drawing status for module {module.Name}");
+            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "---");
         }
         
         ImGui.EndGroup();
@@ -196,107 +209,54 @@ public class MainWindow : Window, IDisposable
             {
                 module.DrawStatus();
             }
-            catch (Exception ex)
+            catch
             {
-                ImGui.TextColored(new Vector4(1, 0, 0, 1), $"Error: {ex.Message}");
+                ImGui.TextColored(new Vector4(1, 0, 0, 1), "Error displaying status");
             }
             
             ImGui.EndTooltip();
         }
     }
 
-    private void DrawModuleCompactStatus(IModule module)
+    private string GetTypeIcon(ModuleType type) => type switch
     {
-        switch (module.Type)
-        {
-            case ModuleType.Currency:
-                // Show count/threshold for currencies
-                if (module is ICurrencyModule currencyModule)
-                {
-                    var currencies = currencyModule.GetTrackedCurrencies();
-                    var primary = currencies.FirstOrDefault(c => c.Enabled);
-                    if (primary != null)
-                    {
-                        var color = primary.HasWarning ? new Vector4(1, 0.5f, 0, 1) : GetStatusColor(module.Status);
-                        ImGui.TextColored(color, $"{primary.CurrentCount:N0}/{primary.Threshold:N0}");
-                    }
-                }
-                break;
-                
-            case ModuleType.Daily:
-            case ModuleType.Weekly:
-                // Show simple status text
-                var statusText = module.Status switch
-                {
-                    ModuleStatus.Complete => "✓",
-                    ModuleStatus.InProgress => "...",
-                    ModuleStatus.Incomplete => "○",
-                    _ => "?"
-                };
-                ImGui.TextColored(GetStatusColor(module.Status), statusText);
-                break;
-                
-            case ModuleType.Special:
-                // Show custom status
-                ImGui.TextColored(GetStatusColor(module.Status), GetStatusText(module.Status));
-                break;
-        }
-    }
+        ModuleType.Currency => "◉",
+        ModuleType.Daily => "◐",
+        ModuleType.Weekly => "◈",
+        ModuleType.Special => "◆",
+        _ => "•"
+    };
 
-    private string GetTypeIcon(ModuleType type)
+    private Vector4 GetTypeColor(ModuleType type) => type switch
     {
-        return type switch
-        {
-            ModuleType.Currency => "💰",
-            ModuleType.Daily => "📅",
-            ModuleType.Weekly => "📆",
-            ModuleType.Special => "⭐",
-            _ => "📋"
-        };
-    }
+        ModuleType.Currency => new Vector4(1, 0.8f, 0.3f, 1),
+        ModuleType.Daily => new Vector4(0.3f, 0.8f, 1, 1),
+        ModuleType.Weekly => new Vector4(0.8f, 0.3f, 1, 1),
+        ModuleType.Special => new Vector4(0.3f, 1, 0.8f, 1),
+        _ => new Vector4(1, 1, 1, 1)
+    };
 
-    private string GetStatusIcon(ModuleStatus status)
+    private string GetStatusIcon(ModuleStatus status) => status switch
     {
-        return status switch
-        {
-            ModuleStatus.Complete => "✓",
-            ModuleStatus.InProgress => "⚠",
-            ModuleStatus.Incomplete => "○",
-            _ => "?"
-        };
-    }
+        ModuleStatus.Complete => "✓",
+        ModuleStatus.InProgress => "!",
+        ModuleStatus.Incomplete => "○",
+        _ => "?"
+    };
 
-    private Vector4 GetTypeColor(ModuleType type)
+    private Vector4 GetStatusColor(ModuleStatus status) => status switch
     {
-        return type switch
-        {
-            ModuleType.Currency => new Vector4(0.8f, 0.7f, 0.2f, 1),
-            ModuleType.Daily => new Vector4(0.2f, 0.7f, 0.8f, 1),
-            ModuleType.Weekly => new Vector4(0.7f, 0.2f, 0.8f, 1),
-            ModuleType.Special => new Vector4(0.8f, 0.2f, 0.5f, 1),
-            _ => new Vector4(0.7f, 0.7f, 0.7f, 1)
-        };
-    }
+        ModuleStatus.Complete => new Vector4(0.3f, 0.8f, 0.3f, 1),
+        ModuleStatus.InProgress => new Vector4(1, 0.8f, 0.2f, 1),
+        ModuleStatus.Incomplete => new Vector4(0.8f, 0.3f, 0.3f, 1),
+        _ => new Vector4(0.5f, 0.5f, 0.5f, 1)
+    };
 
-    private Vector4 GetStatusColor(ModuleStatus status, float alpha = 1.0f)
+    private string GetStatusText(ModuleStatus status) => status switch
     {
-        return status switch
-        {
-            ModuleStatus.Complete => new Vector4(0.2f, 0.8f, 0.2f, alpha),
-            ModuleStatus.InProgress => new Vector4(0.8f, 0.8f, 0.2f, alpha),
-            ModuleStatus.Incomplete => new Vector4(0.8f, 0.2f, 0.2f, alpha),
-            _ => new Vector4(0.7f, 0.7f, 0.7f, alpha)
-        };
-    }
-
-    private string GetStatusText(ModuleStatus status)
-    {
-        return status switch
-        {
-            ModuleStatus.Complete => "Complete",
-            ModuleStatus.InProgress => "In Progress",
-            ModuleStatus.Incomplete => "Incomplete",
-            _ => "Unknown"
-        };
-    }
+        ModuleStatus.Complete => "Done",
+        ModuleStatus.InProgress => "Active",
+        ModuleStatus.Incomplete => "Todo",
+        _ => "---"
+    };
 }

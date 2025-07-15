@@ -33,6 +33,12 @@ public class Configuration : IPluginConfiguration
     // Notification settings
     public NotificationSettings NotificationSettings { get; set; } = new();
     
+    // Overlay settings
+    public OverlaySettings OverlaySettings { get; set; } = new();
+    
+    // Language setting
+    public string Language { get; set; } = "English";
+    
     // Character-specific data management
     private Dictionary<ulong, CharacterData> _characterData = new();
 
@@ -102,6 +108,9 @@ public class UISettings
     public bool UseCompactMode { get; set; } = false;
     public bool ShowCategoryHeaders { get; set; } = true;
     public bool SortByStatus { get; set; } = true;
+    public bool ShowDisabledModules { get; set; } = false;
+    public bool HideInCombat { get; set; } = false;
+    public bool HideInDuty { get; set; } = false;
     public Vector2 MainWindowSize { get; set; } = new(800, 600);
     public Vector2 MainWindowPosition { get; set; } = new(100, 100);
 }
@@ -112,6 +121,22 @@ public class NotificationSettings
     public bool EnableToastNotifications { get; set; } = true;
     public bool EnableSoundNotifications { get; set; } = false;
     public int NotificationThreshold { get; set; } = 90;
+    public bool ChatNotifications { get; set; } = true;
+    public bool SoundNotifications { get; set; } = false;
+    public bool SuppressInDuty { get; set; } = true;
+    public int NotificationCooldown { get; set; } = 5;
+    public bool CurrencyWarningAlerts { get; set; } = true;
+    public bool TaskCompletionAlerts { get; set; } = true;
+}
+
+public class OverlaySettings
+{
+    public bool Enabled { get; set; } = true;
+    public float Opacity { get; set; } = 0.8f;
+    public bool ShowBackground { get; set; } = true;
+    public bool ShowCurrencyWarnings { get; set; } = true;
+    public bool ShowDailyTasks { get; set; } = true;
+    public bool ShowWeeklyTasks { get; set; } = true;
 }
 
 public class CharacterData

@@ -7,7 +7,7 @@ using System.Numerics;
 
 namespace SamplePlugin.Modules.Currency;
 
-public class PoeticTomestoneModule : BaseModule
+public class PoeticTomestoneModule : BaseModule, ICurrencyModule
 {
     public override string Name => "Poetics";
     public override ModuleType Type => ModuleType.Currency;
