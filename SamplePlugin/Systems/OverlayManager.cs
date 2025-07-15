@@ -11,24 +11,22 @@ namespace SamplePlugin.Systems;
 
 public class OverlayManager : IDisposable
 {
-    private readonly List<OverlayWindow> _overlayWindows = new();
     private readonly Plugin _plugin;
+    private readonly UnifiedOverlay _overlay;
     private bool _isEnabled = true;
 
     public OverlayManager(Plugin plugin)
     {
         _plugin = plugin;
+        _overlay = new UnifiedOverlay(plugin);
     }
 
     public void Initialize()
     {
-        _overlayWindows.Add(new CompactCurrencyOverlay(_plugin));
-        _overlayWindows.Add(new CompactTaskOverlay(_plugin));
-        
-        Plugin.PluginInterface.UiBuilder.Draw += DrawOverlays;
+        Plugin.PluginInterface.UiBuilder.Draw += DrawOverlay;
     }
     
-    private void DrawOverlays()
+    private void DrawOverlay()
     {
         if (!_isEnabled || !Plugin.ClientState.IsLoggedIn) return;
         
@@ -45,96 +43,51 @@ public class OverlayManager : IDisposable
             Plugin.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.WatchingCutscene])
             return;
         
-        foreach (var overlay in _overlayWindows)
-        {
-            if (overlay.IsEnabled)
-            {
-                overlay.Draw();
-            }
-        }
+        _overlay.Draw();
     }
     
-    public void ToggleOverlays()
+    public void ToggleOverlay()
     {
         _isEnabled = !_isEnabled;
     }
     
-    public void RefreshAll()
+    public void RefreshOverlay()
     {
-        foreach (var overlay in _overlayWindows)
-        {
-            overlay.Refresh();
-        }
+        _overlay.Refresh();
     }
     
     public void DrawConfiguration()
     {
-        ImGui.Checkbox("Enable All Overlays", ref _isEnabled);
+        ImGui.Checkbox("Enable Overlay", ref _isEnabled);
         
         if (_isEnabled)
         {
             ImGui.Separator();
-            foreach (var overlay in _overlayWindows)
-            {
-                if (ImGui.CollapsingHeader(overlay.Name))
-                {
-                    overlay.DrawConfig();
-                }
-            }
+            _overlay.DrawConfig();
         }
     }
     
     public void Dispose()
     {
-        Plugin.PluginInterface.UiBuilder.Draw -= DrawOverlays;
-        foreach (var overlay in _overlayWindows)
-        {
-            overlay.Dispose();
-        }
+        Plugin.PluginInterface.UiBuilder.Draw -= DrawOverlay;
+        _overlay.Dispose();
     }
 }
 
-public abstract class OverlayWindow : IDisposable
+public class UnifiedOverlay : IDisposable
 {
-    public abstract string Name { get; }
-    public bool IsEnabled { get; set; } = true;
-    public bool IsMoveable { get; set; } = false;
+    public string Name => "Wahdori Overlay";
+    public bool IsMoveable { get; set; } = true;
     protected Plugin Plugin { get; }
     protected Vector2 Position { get; set; }
-    protected Vector2 Size { get; set; }
     
-    protected OverlayWindow(Plugin plugin)
+    public UnifiedOverlay(Plugin plugin)
     {
         Plugin = plugin;
-        Position = new Vector2(100, 100);
-        Size = new Vector2(250, 100);
+        Position = new Vector2(10, 100);
     }
     
-    public abstract void Draw();
-    public virtual void DrawConfig()
-    {
-        var enabled = IsEnabled;
-        if (ImGui.Checkbox($"Enable {Name}", ref enabled))
-        {
-            IsEnabled = enabled;
-        }
-        
-        var moveable = IsMoveable;
-        if (ImGui.Checkbox("Allow Moving", ref moveable))
-        {
-            IsMoveable = moveable;
-        }
-        
-        if (ImGui.Button("Reset Position"))
-        {
-            Position = new Vector2(100, 100);
-        }
-    }
-    
-    public virtual void Refresh() { }
-    public virtual void Dispose() { }
-    
-    protected void DrawWindow(string id, Action contentAction)
+    public void Draw()
     {
         var flags = ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.AlwaysAutoResize | 
                    ImGuiWindowFlags.NoFocusOnAppearing | ImGuiWindowFlags.NoNav;
@@ -158,99 +111,94 @@ public abstract class OverlayWindow : IDisposable
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 5.0f);
         ImGui.SetNextWindowPos(Position, ImGuiCond.FirstUseEver);
         
-        if (ImGui.Begin(id, flags))
+        if (ImGui.Begin("##WahdoriOverlay", flags))
         {
             if (IsMoveable)
             {
                 Position = ImGui.GetWindowPos();
             }
             
-            contentAction();
+            DrawContent();
         }
         ImGui.End();
         
         ImGui.PopStyleVar(2);
         ImGui.PopStyleColor();
     }
-}
-
-public class CompactCurrencyOverlay : OverlayWindow
-{
-    public override string Name => "Currency Warnings";
     
-    public CompactCurrencyOverlay(Plugin plugin) : base(plugin)
+    private void DrawContent()
     {
-        Position = new Vector2(10, 100);
-    }
-    
-    public override void Draw()
-    {
-        if (!Plugin.Configuration.OverlaySettings.ShowCurrencyWarnings) return;
+        var showCurrencies = Plugin.Configuration.OverlaySettings.ShowCurrencyWarnings;
+        var showDaily = Plugin.Configuration.OverlaySettings.ShowDailyTasks;
+        var showWeekly = Plugin.Configuration.OverlaySettings.ShowWeeklyTasks;
         
-        DrawWindow("##CurrencyOverlay", () =>
+        if (!showCurrencies && !showDaily && !showWeekly)
         {
-            var currencies = Plugin.ModuleManager.GetModules()
-                .Where(m => m.Type == ModuleType.Currency && m.IsEnabled)
-                .OfType<ICurrencyModule>()
-                .SelectMany(m => m.GetTrackedCurrencies())
-                .Where(c => c.Enabled && c.HasWarning)
-                .ToList();
-                
-            if (!currencies.Any())
-            {
-                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "No currency warnings");
-                return;
-            }
-            
-            ImGui.TextColored(new Vector4(1, 0.5f, 0, 1), "Currency Warnings:");
-            ImGui.Separator();
-            
-            foreach (var currency in currencies)
-            {
-                var maxDisplay = currency.MaxCount > 0 ? currency.MaxCount : currency.Threshold;
-                var percentage = (float)currency.CurrentCount / maxDisplay * 100;
-                ImGui.Text($"{currency.Name}:");
-                ImGui.SameLine();
-                ImGui.TextColored(new Vector4(1, 0.5f, 0, 1), 
-                    $"{currency.CurrentCount:N0}/{maxDisplay:N0} ({percentage:F0}%)");
-            }
-        });
-    }
-}
-
-public class CompactTaskOverlay : OverlayWindow
-{
-    public override string Name => "Task Tracker";
-    
-    public CompactTaskOverlay(Plugin plugin) : base(plugin)
-    {
-        Position = new Vector2(10, 250);
-    }
-    
-    public override void Draw()
-    {
-        DrawWindow("##TaskOverlay", () =>
+            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "No overlay items enabled");
+            return;
+        }
+        
+        bool firstSection = true;
+        
+        // Currency Warnings
+        if (showCurrencies)
         {
-            var showDaily = Plugin.Configuration.OverlaySettings.ShowDailyTasks;
-            var showWeekly = Plugin.Configuration.OverlaySettings.ShowWeeklyTasks;
-            
-            if (!showDaily && !showWeekly)
+            DrawCurrencyWarnings();
+            firstSection = false;
+        }
+        
+        // Daily Tasks
+        if (showDaily)
+        {
+            if (!firstSection) 
             {
-                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "Task tracking disabled");
-                return;
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
             }
-            
-            if (showDaily)
+            DrawTaskSection("Daily Tasks", ModuleType.Daily);
+            firstSection = false;
+        }
+        
+        // Weekly Tasks
+        if (showWeekly)
+        {
+            if (!firstSection) 
             {
-                DrawTaskSection("Daily Tasks", ModuleType.Daily);
+                ImGui.Spacing();
+                ImGui.Separator();
+                ImGui.Spacing();
             }
+            DrawTaskSection("Weekly Tasks", ModuleType.Weekly);
+        }
+    }
+    
+    private void DrawCurrencyWarnings()
+    {
+        var currencies = Plugin.ModuleManager.GetModules()
+            .Where(m => m.Type == ModuleType.Currency && m.IsEnabled)
+            .OfType<ICurrencyModule>()
+            .SelectMany(m => m.GetTrackedCurrencies())
+            .Where(c => c.Enabled && c.HasWarning)
+            .ToList();
             
-            if (showWeekly)
-            {
-                if (showDaily) ImGui.Spacing();
-                DrawTaskSection("Weekly Tasks", ModuleType.Weekly);
-            }
-        });
+        if (!currencies.Any())
+        {
+            ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "No currency warnings");
+            return;
+        }
+        
+        ImGui.TextColored(new Vector4(1, 0.5f, 0, 1), "Currency Warnings:");
+        
+        foreach (var currency in currencies)
+        {
+            var maxDisplay = currency.MaxCount > 0 ? currency.MaxCount : currency.Threshold;
+            var percentage = (float)currency.CurrentCount / maxDisplay * 100;
+            ImGui.Text($"{currency.Name}:");
+            ImGui.SameLine();
+            ImGui.TextColored(new Vector4(1, 0.5f, 0, 1), 
+                $"{currency.CurrentCount:N0}/{maxDisplay:N0} ({percentage:F0}%)");
+        }
     }
     
     private void DrawTaskSection(string title, ModuleType type)
@@ -294,4 +242,63 @@ public class CompactTaskOverlay : OverlayWindow
             }
         }
     }
+    
+    public void DrawConfig()
+    {
+        var moveable = IsMoveable;
+        if (ImGui.Checkbox("Allow Moving", ref moveable))
+        {
+            IsMoveable = moveable;
+        }
+        
+        ImGui.SameLine();
+        if (ImGui.Button("Reset Position"))
+        {
+            Position = new Vector2(10, 100);
+        }
+        
+        ImGui.Separator();
+        ImGui.Text("Display Options:");
+        
+        var showBg = Plugin.Configuration.OverlaySettings.ShowBackground;
+        if (ImGui.Checkbox("Show Background", ref showBg))
+        {
+            Plugin.Configuration.OverlaySettings.ShowBackground = showBg;
+            Plugin.Configuration.Save();
+        }
+        
+        var opacity = Plugin.Configuration.OverlaySettings.Opacity;
+        if (ImGui.SliderFloat("Opacity", ref opacity, 0.1f, 1.0f))
+        {
+            Plugin.Configuration.OverlaySettings.Opacity = opacity;
+            Plugin.Configuration.Save();
+        }
+        
+        ImGui.Separator();
+        ImGui.Text("Content to Display:");
+        
+        var showCurrencies = Plugin.Configuration.OverlaySettings.ShowCurrencyWarnings;
+        if (ImGui.Checkbox("Currency Warnings", ref showCurrencies))
+        {
+            Plugin.Configuration.OverlaySettings.ShowCurrencyWarnings = showCurrencies;
+            Plugin.Configuration.Save();
+        }
+        
+        var showDaily = Plugin.Configuration.OverlaySettings.ShowDailyTasks;
+        if (ImGui.Checkbox("Daily Tasks", ref showDaily))
+        {
+            Plugin.Configuration.OverlaySettings.ShowDailyTasks = showDaily;
+            Plugin.Configuration.Save();
+        }
+        
+        var showWeekly = Plugin.Configuration.OverlaySettings.ShowWeeklyTasks;
+        if (ImGui.Checkbox("Weekly Tasks", ref showWeekly))
+        {
+            Plugin.Configuration.OverlaySettings.ShowWeeklyTasks = showWeekly;
+            Plugin.Configuration.Save();
+        }
+    }
+    
+    public void Refresh() { }
+    public void Dispose() { }
 } 

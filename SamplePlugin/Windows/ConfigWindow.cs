@@ -115,25 +115,6 @@ public class ConfigWindow : Window, IDisposable
             Configuration.UISettings.ShowDisabledModules = showDisabledModules;
             Configuration.Save();
         }
-        
-        ImGui.Spacing();
-        
-        // Language
-        var currentLang = Configuration.Language;
-        ImGui.SetNextItemWidth(150);
-        if (ImGui.BeginCombo("Language", currentLang))
-        {
-            foreach (var lang in new[] { "English", "日本語", "Deutsch", "Français" })
-            {
-                if (ImGui.Selectable(lang, lang == currentLang))
-                {
-                    Configuration.Language = lang;
-                    Configuration.Save();
-                    Plugin.LocalizationManager.SetLanguage(lang);
-                }
-            }
-            ImGui.EndCombo();
-        }
     }
 
     private void DrawModulesSettings()
@@ -338,21 +319,6 @@ public class ConfigWindow : Window, IDisposable
                     Configuration.NotificationSettings.NotificationCooldown = cooldown;
                     Configuration.Save();
                 }
-            }
-            
-            ImGui.Unindent();
-        }
-        
-        // Sound alerts
-        if (ImGui.CollapsingHeader("Sound Alerts"))
-        {
-            ImGui.Indent();
-            
-            var soundAlerts = Configuration.NotificationSettings.SoundNotifications;
-            if (ImGui.Checkbox("Enable Sound Notifications", ref soundAlerts))
-            {
-                Configuration.NotificationSettings.SoundNotifications = soundAlerts;
-                Configuration.Save();
             }
             
             ImGui.Unindent();

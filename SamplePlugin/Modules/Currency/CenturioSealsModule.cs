@@ -33,7 +33,7 @@ public class CenturioSealsModule : BaseModule, ICurrencyModule
             Enabled = true,
             ShowInOverlay = true,
             ChatWarning = true,
-            WarningText = Plugin.Instance.LocalizationManager.GetString("currency.near_cap")
+            WarningText = "Currency near cap"
         });
     }
 
@@ -91,7 +91,7 @@ public class CenturioSealsModule : BaseModule, ICurrencyModule
             
             ImGui.SameLine();
             var enabled = currency.Enabled;
-            if (ImGui.Checkbox(Plugin.Instance.LocalizationManager.GetString("config.enabled"), ref enabled))
+            if (ImGui.Checkbox("Enabled", ref enabled))
             {
                 currency.Enabled = enabled;
             }
@@ -99,14 +99,14 @@ public class CenturioSealsModule : BaseModule, ICurrencyModule
             ImGui.SameLine();
             ImGui.SetNextItemWidth(100);
             var threshold = currency.Threshold;
-            if (ImGui.InputInt(Plugin.Instance.LocalizationManager.GetString("config.threshold"), ref threshold, 0, 0))
+            if (ImGui.InputInt("Warning Threshold", ref threshold, 0, 0))
             {
                 currency.Threshold = System.Math.Max(0, threshold);
             }
             
             ImGui.SameLine();
             var chatWarning = currency.ChatWarning;
-            if (ImGui.Checkbox(Plugin.Instance.LocalizationManager.GetString("config.chat_alert"), ref chatWarning))
+            if (ImGui.Checkbox("Chat Alerts", ref chatWarning))
             {
                 currency.ChatWarning = chatWarning;
             }

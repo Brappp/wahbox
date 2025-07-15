@@ -93,7 +93,7 @@ public class TomestoneModule : BaseModule, ICurrencyModule
 
     public override void DrawConfig()
     {
-        ImGui.TextUnformatted(Plugin.Instance.LocalizationManager.GetString("plugin.name"));
+        ImGui.TextUnformatted("Wahdori");
         ImGui.Separator();
 
         foreach (var currency in _trackedCurrencies)
@@ -110,7 +110,7 @@ public class TomestoneModule : BaseModule, ICurrencyModule
             
             ImGui.SameLine();
             var enabled = currency.Enabled;
-            if (ImGui.Checkbox(Plugin.Instance.LocalizationManager.GetString("config.enabled"), ref enabled))
+            if (ImGui.Checkbox("Enabled", ref enabled))
             {
                 currency.Enabled = enabled;
             }
@@ -118,14 +118,14 @@ public class TomestoneModule : BaseModule, ICurrencyModule
             ImGui.SameLine();
             ImGui.SetNextItemWidth(100);
             var threshold = currency.Threshold;
-            if (ImGui.InputInt(Plugin.Instance.LocalizationManager.GetString("config.threshold"), ref threshold, 0, 0))
+            if (ImGui.InputInt("Warning Threshold", ref threshold, 0, 0))
             {
                 currency.Threshold = System.Math.Max(0, threshold);
             }
             
             ImGui.SameLine();
             var chatWarning = currency.ChatWarning;
-            if (ImGui.Checkbox(Plugin.Instance.LocalizationManager.GetString("config.chat_alert"), ref chatWarning))
+            if (ImGui.Checkbox("Chat Alerts", ref chatWarning))
             {
                 currency.ChatWarning = chatWarning;
             }

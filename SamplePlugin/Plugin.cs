@@ -34,7 +34,6 @@ public sealed class Plugin : IDalamudPlugin
     internal static Plugin Instance { get; private set; } = null!;
     internal Core.ModuleManager ModuleManager { get; private set; } = null!;
     internal Systems.OverlayManager OverlayManager { get; private set; } = null!;
-    internal ILocalizationManager LocalizationManager { get; private set; } = null!;
     internal Systems.PayloadSystem PayloadSystem { get; private set; } = null!;
     internal Systems.TeleportManager TeleportManager { get; private set; } = null!;
     internal Systems.NotificationManager NotificationManager { get; private set; } = null!;
@@ -101,7 +100,6 @@ public sealed class Plugin : IDalamudPlugin
         PayloadSystem = new Systems.PayloadSystem();
         TeleportManager = new Systems.TeleportManager();
         NotificationManager = new Systems.NotificationManager();
-        LocalizationManager = new Systems.LocalizationManager();
         ModuleManager = new Core.ModuleManager(this);
         OverlayManager = new Systems.OverlayManager(this);
         
@@ -195,7 +193,8 @@ public sealed class Plugin : IDalamudPlugin
     private void OnFrameworkUpdate(IFramework framework)
     {
         ModuleManager.UpdateAll();
-        OverlayManager.RefreshAll();
+        // Refresh overlays to reflect changes
+        OverlayManager.RefreshOverlay();
     }
     
     private void LoadCharacterData()
@@ -229,7 +228,7 @@ public sealed class Plugin : IDalamudPlugin
         // Dispose systems in reverse order
         OverlayManager?.Dispose();
         ModuleManager?.Dispose();
-        // LocalizationManager doesn't need disposal
+        // Removed localization
         NotificationManager?.Dispose();
         TeleportManager?.Dispose();
         PayloadSystem?.Dispose();

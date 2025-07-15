@@ -36,9 +36,6 @@ public class Configuration : IPluginConfiguration
     // Overlay settings
     public OverlaySettings OverlaySettings { get; set; } = new();
     
-    // Language setting
-    public string Language { get; set; } = "English";
-    
     // Character-specific data management
     private Dictionary<ulong, CharacterData> _characterData = new();
 
@@ -119,10 +116,8 @@ public class NotificationSettings
 {
     public bool EnableChatNotifications { get; set; } = true;
     public bool EnableToastNotifications { get; set; } = true;
-    public bool EnableSoundNotifications { get; set; } = false;
     public int NotificationThreshold { get; set; } = 90;
     public bool ChatNotifications { get; set; } = true;
-    public bool SoundNotifications { get; set; } = false;
     public bool SuppressInDuty { get; set; } = true;
     public int NotificationCooldown { get; set; } = 5;
     public bool CurrencyWarningAlerts { get; set; } = true;
