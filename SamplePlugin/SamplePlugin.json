@@ -1,12 +1,21 @@
 {
-  "Author": "your name here",
-  "Name": "Sample Plugin",
-  "Punchline": "A short one-liner that shows up in /xlplugins.",
-  "Description": "A description that shows up in /xlplugins. List any major slash-command(s).",
+  "Author": "Your Name",
+  "Name": "Wahdori",
+  "Punchline": "Currency alerts and daily duties in one place",
+  "Description": "Track your currencies, daily tasks, weekly resets, and more. Features customizable alerts, overlay support, and comprehensive activity management. Combines the functionality of CurrencyAlert and DailyDuty.",
+  "RepoUrl": "https://github.com/yourusername/Wahdori",
   "ApplicableVersion": "any",
   "Tags": [
-    "sample",
-    "plugin",
-    "goats"
+    "currency",
+    "daily",
+    "weekly", 
+    "tracker",
+    "utility",
+    "overlay",
+    "tomestones",
+    "duties"
+  ],
+  "CategoryTags": [
+    "utility"
   ]
 }

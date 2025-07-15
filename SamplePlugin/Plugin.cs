@@ -5,31 +5,61 @@ using System.IO;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin.Services;
 using SamplePlugin.Windows;
+using ECommons;
+using ECommons.Configuration;
+using ECommons.Schedulers;
 
 namespace SamplePlugin;
 
 public sealed class Plugin : IDalamudPlugin
 {
+    // Keep the original service injection pattern
     [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
     [PluginService] internal static ITextureProvider TextureProvider { get; private set; } = null!;
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IClientState ClientState { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static ICondition Condition { get; private set; } = null!;
+    [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
+    [PluginService] internal static IGameInteropProvider GameInteropProvider { get; private set; } = null!;
+    [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
 
-    private const string CommandName = "/pmycommand";
+    public string Name => "Wahdori";
+    
+    // Core systems
+    internal static Plugin Instance { get; private set; } = null!;
+    internal Core.ModuleManager ModuleManager { get; private set; } = null!;
+    internal Systems.OverlayManager OverlayManager { get; private set; } = null!;
+    internal Systems.PayloadSystem PayloadSystem { get; private set; } = null!;
+    internal Systems.TeleportManager TeleportManager { get; private set; } = null!;
+    internal Systems.NotificationManager NotificationManager { get; private set; } = null!;
+    internal Systems.LocalizationManager LocalizationManager { get; private set; } = null!;
+
+    private const string MainCommand = "/wahdori";
+    private const string ConfigCommand = "/wdcfg";
 
     public Configuration Configuration { get; init; }
 
-    public readonly WindowSystem WindowSystem = new("SamplePlugin");
+    public readonly WindowSystem WindowSystem = new("Wahdori");
     private ConfigWindow ConfigWindow { get; init; }
     private MainWindow MainWindow { get; init; }
 
     public Plugin()
     {
+        Instance = this;
+        
+        // Initialize ECommons - this provides additional functionality
+        ECommonsMain.Init(PluginInterface, this, ECommons.Module.All);
+        
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
 
-        // you might normally want to embed resources and load them from the manifest stream
+        // Initialize core systems
+        InitializeSystems();
+        
+        // Keep the goat image for fun
         var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
 
         ConfigWindow = new ConfigWindow(this);
@@ -38,43 +68,188 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
 
-        CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
+        // Register commands
+        CommandManager.AddHandler(MainCommand, new CommandInfo(OnMainCommand)
         {
-            HelpMessage = "A useful message to display in /xlhelp"
+            HelpMessage = "Open Wahdori main window - Currency alerts and daily duties tracker"
+        });
+        
+        CommandManager.AddHandler(ConfigCommand, new CommandInfo(OnConfigCommand)
+        {
+            HelpMessage = "Open Wahdori configuration"
         });
 
         PluginInterface.UiBuilder.Draw += DrawUI;
-
-        // This adds a button to the plugin installer entry of this plugin which allows
-        // to toggle the display status of the configuration ui
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUI;
-
-        // Adds another button that is doing the same but for the main ui of the plugin
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUI;
 
-        // Add a simple message to the log with level set to information
-        // Use /xllog to open the log window in-game
-        // Example Output: 00:57:54.959 | INF | [SamplePlugin] ===A cool log message from Sample Plugin===
-        Log.Information($"===A cool log message from {PluginInterface.Manifest.Name}===");
+        // Register event handlers
+        RegisterEventHandlers();
+        
+        // Load modules if logged in
+        if (ClientState.IsLoggedIn)
+        {
+            _ = new TickScheduler(LoadCharacterData);
+        }
+
+        Log.Information($"Wahdori v{PluginInterface.Manifest.AssemblyVersion} loaded successfully!");
+    }
+
+    private void InitializeSystems()
+    {
+        PayloadSystem = new Systems.PayloadSystem();
+        TeleportManager = new Systems.TeleportManager();
+        NotificationManager = new Systems.NotificationManager();
+        LocalizationManager = new Systems.LocalizationManager();
+        ModuleManager = new Core.ModuleManager(this);
+        OverlayManager = new Systems.OverlayManager();
+        
+        // Initialize localization first
+        LocalizationManager.Initialize();
+        
+        // Initialize notification system
+        NotificationManager.Initialize();
+        
+        // Register all modules
+        RegisterModules();
+        
+        // Initialize after registration
+        ModuleManager.Initialize();
+        OverlayManager.Initialize();
+    }
+    
+    private void RegisterModules()
+    {
+        // Currency modules (from CurrencyAlert)
+        ModuleManager.RegisterModule(new Modules.Currency.TomestoneModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.GrandCompanyModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.AlliedSealsModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.CenturioSealsModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.SackOfNutsModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.WolfMarksModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.TrophyCrystalsModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.BicolorGemstonesModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.SkybuildersScripModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.PoeticTomestoneModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.WhiteScripsModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.PurpleScripsModule(this));
+        
+        // Daily modules (from DailyDuty)
+        ModuleManager.RegisterModule(new Modules.Daily.DutyRouletteModule(this));
+        ModuleManager.RegisterModule(new Modules.Daily.BeastTribeModule(this));
+        ModuleManager.RegisterModule(new Modules.Daily.MiniCactpotModule(this));
+        ModuleManager.RegisterModule(new Modules.Daily.GrandCompanyProvisionModule(this));
+        ModuleManager.RegisterModule(new Modules.Daily.GrandCompanySupplyModule(this));
+        ModuleManager.RegisterModule(new Modules.Daily.TribalQuestsModule(this));
+        ModuleManager.RegisterModule(new Modules.Daily.LevequestsModule(this));
+        ModuleManager.RegisterModule(new Modules.Daily.DailyHuntBillsModule(this));
+        
+        // Weekly modules
+        ModuleManager.RegisterModule(new Modules.Weekly.WondrousTailsModule(this));
+        ModuleManager.RegisterModule(new Modules.Weekly.CustomDeliveryModule(this));
+        ModuleManager.RegisterModule(new Modules.Weekly.FashionReportModule(this));
+        ModuleManager.RegisterModule(new Modules.Weekly.DomanEnclaveModule(this));
+        ModuleManager.RegisterModule(new Modules.Weekly.JumboCactpotModule(this));
+        ModuleManager.RegisterModule(new Modules.Weekly.ChallengeLogModule(this));
+        ModuleManager.RegisterModule(new Modules.Weekly.HuntMarkWeeklyModule(this));
+        ModuleManager.RegisterModule(new Modules.Weekly.MaskedCarnivaleModule(this));
+        
+        // Special modules
+        ModuleManager.RegisterModule(new Modules.Special.TreasureMapsModule(this));
+        ModuleManager.RegisterModule(new Modules.Special.RetainerVenturesModule(this));
+    }
+    
+    private void RegisterEventHandlers()
+    {
+        ClientState.Login += OnLogin;
+        ClientState.Logout += OnLogout;
+        ClientState.TerritoryChanged += OnTerritoryChanged;
+        Framework.Update += OnFrameworkUpdate;
+    }
+    
+    private void UnregisterEventHandlers()
+    {
+        ClientState.Login -= OnLogin;
+        ClientState.Logout -= OnLogout;
+        ClientState.TerritoryChanged -= OnTerritoryChanged;
+        Framework.Update -= OnFrameworkUpdate;
+    }
+    
+    private void OnLogin()
+    {
+        _ = new TickScheduler(LoadCharacterData);
+    }
+    
+    private void OnLogout(int type, int code)
+    {
+        SaveCharacterData();
+        ModuleManager.UnloadAll();
+    }
+    
+    private void OnTerritoryChanged(ushort territory)
+    {
+        ModuleManager.OnTerritoryChanged(territory);
+    }
+    
+    private void OnFrameworkUpdate(IFramework framework)
+    {
+        ModuleManager.UpdateAll();
+        OverlayManager.RefreshAll();
+    }
+    
+    private void LoadCharacterData()
+    {
+        if (!ClientState.IsLoggedIn || ClientState.LocalContentId == 0) return;
+        
+        Configuration.LoadCharacterData(ClientState.LocalContentId);
+        ModuleManager.LoadAll();
+    }
+    
+    private void SaveCharacterData()
+    {
+        if (ClientState.LocalContentId == 0) return;
+        
+        Configuration.SaveCharacterData(ClientState.LocalContentId);
     }
 
     public void Dispose()
     {
+        SaveCharacterData();
+        UnregisterEventHandlers();
+        
         WindowSystem.RemoveAllWindows();
 
         ConfigWindow.Dispose();
         MainWindow.Dispose();
 
-        CommandManager.RemoveHandler(CommandName);
+        CommandManager.RemoveHandler(MainCommand);
+        CommandManager.RemoveHandler(ConfigCommand);
+        
+        // Dispose systems in reverse order
+        OverlayManager?.Dispose();
+        ModuleManager?.Dispose();
+        LocalizationManager?.Dispose();
+        NotificationManager?.Dispose();
+        TeleportManager?.Dispose();
+        PayloadSystem?.Dispose();
+        
+        ECommonsMain.Dispose();
     }
 
-    private void OnCommand(string command, string args)
+    private void OnMainCommand(string command, string args)
     {
-        // in response to the slash command, just toggle the display status of our main ui
         ToggleMainUI();
     }
+    
+    private void OnConfigCommand(string command, string args)
+    {
+        ToggleConfigUI();
+    }
 
-    private void DrawUI() => WindowSystem.Draw();
+    private void DrawUI()
+    {
+        WindowSystem.Draw();
+    }
 
     public void ToggleConfigUI() => ConfigWindow.Toggle();
     public void ToggleMainUI() => MainWindow.Toggle();
