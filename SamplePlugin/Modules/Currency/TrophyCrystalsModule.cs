@@ -29,6 +29,7 @@ public class TrophyCrystalsModule : BaseModule, ICurrencyModule
             Type = CurrencyType.Item,
             ItemId = 36656,  // Trophy Crystals
             Threshold = 18000,
+            MaxCount = 20000,
             Enabled = true,
             ShowInOverlay = true,
             ChatWarning = true,
@@ -85,7 +86,8 @@ public class TrophyCrystalsModule : BaseModule, ICurrencyModule
                 ImGui.SameLine();
             }
 
-            ImGui.Text($"{currency.Name}: {currency.CurrentCount:N0} / {currency.Threshold:N0}");
+            var maxDisplay = currency.MaxCount > 0 ? currency.MaxCount : currency.Threshold;
+            ImGui.Text($"{currency.Name}: {currency.CurrentCount:N0} / {maxDisplay:N0}");
             
             ImGui.SameLine();
             var enabled = currency.Enabled;
@@ -127,7 +129,8 @@ public class TrophyCrystalsModule : BaseModule, ICurrencyModule
 
             var color = currency.HasWarning ? new Vector4(1, 0.5f, 0, 1) : new Vector4(1, 1, 1, 1);
             
-            ImGui.TextColored(color, $"{currency.Name}: {currency.CurrentCount:N0}/{currency.Threshold:N0}");
+            var maxDisplay = currency.MaxCount > 0 ? currency.MaxCount : currency.Threshold;
+            ImGui.TextColored(color, $"{currency.Name}: {currency.CurrentCount:N0}/{maxDisplay:N0}");
         }
     }
 

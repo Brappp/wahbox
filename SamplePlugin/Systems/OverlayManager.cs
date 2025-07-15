@@ -4,6 +4,7 @@ using System.Linq;
 using System.Numerics;
 using ImGuiNET;
 using Dalamud.Interface.Utility;
+using Dalamud.Interface;
 using SamplePlugin.Core.Interfaces;
 
 namespace SamplePlugin.Systems;
@@ -206,11 +207,12 @@ public class CompactCurrencyOverlay : OverlayWindow
             
             foreach (var currency in currencies)
             {
-                var percentage = (float)currency.CurrentCount / currency.Threshold * 100;
+                var maxDisplay = currency.MaxCount > 0 ? currency.MaxCount : currency.Threshold;
+                var percentage = (float)currency.CurrentCount / maxDisplay * 100;
                 ImGui.Text($"{currency.Name}:");
                 ImGui.SameLine();
                 ImGui.TextColored(new Vector4(1, 0.5f, 0, 1), 
-                    $"{currency.CurrentCount:N0}/{currency.Threshold:N0} ({percentage:F0}%)");
+                    $"{currency.CurrentCount:N0}/{maxDisplay:N0} ({percentage:F0}%)");
             }
         });
     }
@@ -270,9 +272,9 @@ public class CompactTaskOverlay : OverlayWindow
             {
                 var icon = task.Status switch
                 {
-                    ModuleStatus.InProgress => "⚠",
-                    ModuleStatus.Incomplete => "○",
-                    _ => "?"
+                    ModuleStatus.InProgress => FontAwesomeIcon.ExclamationTriangle,
+                    ModuleStatus.Incomplete => FontAwesomeIcon.Circle,
+                    _ => FontAwesomeIcon.Question
                 };
                 
                 var color = task.Status switch
@@ -282,7 +284,13 @@ public class CompactTaskOverlay : OverlayWindow
                     _ => new Vector4(0.7f, 0.7f, 0.7f, 1)
                 };
                 
-                ImGui.TextColored(color, $"  {icon} {task.Name}");
+                ImGui.Text("  ");
+                ImGui.SameLine();
+                ImGui.PushFont(UiBuilder.IconFont);
+                ImGui.TextColored(color, ((char)icon).ToString());
+                ImGui.PopFont();
+                ImGui.SameLine();
+                ImGui.TextColored(color, task.Name);
             }
         }
     }

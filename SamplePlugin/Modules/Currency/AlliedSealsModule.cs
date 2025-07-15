@@ -29,6 +29,7 @@ public class AlliedSealsModule : BaseModule, ICurrencyModule
             Type = CurrencyType.Item,
             ItemId = 27,  // Allied Seals
             Threshold = 3500,
+            MaxCount = 4000,
             Enabled = true,
             ShowInOverlay = true,
             ChatWarning = true,
@@ -86,7 +87,8 @@ public class AlliedSealsModule : BaseModule, ICurrencyModule
                 ImGui.SameLine();
             }
 
-            ImGui.Text($"{currency.Name}: {currency.CurrentCount:N0} / {currency.Threshold:N0}");
+            var maxDisplay = currency.MaxCount > 0 ? currency.MaxCount : currency.Threshold;
+            ImGui.Text($"{currency.Name}: {currency.CurrentCount:N0} / {maxDisplay:N0}");
             
             ImGui.SameLine();
             var enabled = currency.Enabled;
@@ -128,7 +130,8 @@ public class AlliedSealsModule : BaseModule, ICurrencyModule
 
             var color = currency.HasWarning ? new Vector4(1, 0.5f, 0, 1) : new Vector4(1, 1, 1, 1);
             
-            ImGui.TextColored(color, $"{currency.Name}: {currency.CurrentCount:N0}/{currency.Threshold:N0}");
+            var maxDisplay = currency.MaxCount > 0 ? currency.MaxCount : currency.Threshold;
+            ImGui.TextColored(color, $"{currency.Name}: {currency.CurrentCount:N0}/{maxDisplay:N0}");
         }
     }
 

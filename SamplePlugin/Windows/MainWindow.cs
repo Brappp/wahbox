@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
-using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Interface.Textures;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Interface.Components;
+using Dalamud.Interface;
 using ImGuiNET;
 using SamplePlugin.Core.Interfaces;
 
@@ -13,8 +15,8 @@ namespace SamplePlugin.Windows;
 public class MainWindow : Window, IDisposable
 {
     private string GoatImagePath;
-    private IDalamudTextureWrap? GoatImage;
-    private Plugin Plugin;
+    private ISharedImmediateTexture? GoatTexture;
+    private Plugin PluginInstance;
     
     private string _searchFilter = string.Empty;
     private bool _showCompleted = true;
@@ -23,90 +25,86 @@ public class MainWindow : Window, IDisposable
     public MainWindow(Plugin plugin, string goatImagePath) : base("Wahdori##Main")
     {
         GoatImagePath = goatImagePath;
-        Plugin = plugin;
+        PluginInstance = plugin;
         
-        // Compact window size
-        Size = new Vector2(320, 450);
+        // Load the texture once using the shared texture system
+        GoatTexture = Plugin.TextureProvider.GetFromFile(GoatImagePath);
+        
+        // Let the user resize as they want
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(280, 350),
-            MaximumSize = new Vector2(400, 600)
+            MinimumSize = new Vector2(280, 200),
+            MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
         
-        Flags = ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse;
+        // Remove flags that prevent normal window behavior
+        Flags = ImGuiWindowFlags.None;
+        
+        // Add title bar button for settings
+        TitleBarButtons = new List<Window.TitleBarButton>
+        {
+            new Window.TitleBarButton
+            {
+                Icon = FontAwesomeIcon.Cog,
+                Click = (msg) => PluginInstance.ToggleConfigUI(),
+                IconOffset = new Vector2(2, 1),
+                ShowTooltip = () => ImGui.SetTooltip("Settings")
+            }
+        };
     }
 
     public void Dispose()
     {
-        GoatImage?.Dispose();
+        // No need to dispose shared textures - Dalamud manages them
     }
 
     public override void Draw()
     {
-        DrawHeader();
-        ImGui.Separator();
-        DrawContent();
+        try
+        {
+            DrawHeader();
+            ImGui.Separator();
+            DrawContent();
+        }
+        catch (Exception ex)
+        {
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Critical error in window draw");
+            ImGui.Text($"Error: {ex.Message}");
+            Plugin.Log.Error(ex, "Critical error in MainWindow.Draw");
+        }
     }
 
     private void DrawHeader()
     {
-        // Load goat image if needed
-        if (GoatImage == null)
+        try
         {
-            var goatTex = Plugin.TextureProvider.GetFromFile(GoatImagePath);
-            if (goatTex != null && goatTex.TryGetWrap(out var wrap, out _))
-            {
-                GoatImage = wrap;
-            }
-        }
-
-        // Title with goat icon
-        if (GoatImage != null)
-        {
-            ImGui.Image(GoatImage.ImGuiHandle, new Vector2(20, 20));
-            ImGui.SameLine();
-        }
-        ImGui.Text("Wahdori");
-        
-        // Quick stats
-        ImGui.SameLine();
-        var modules = Plugin.ModuleManager.GetModules().Where(m => m.IsEnabled).ToList();
-        var warnings = modules.Count(m => m.Type == ModuleType.Currency && m.Status == ModuleStatus.InProgress);
-        if (warnings > 0)
-        {
-            ImGui.TextColored(new Vector4(1, 0.5f, 0, 1), $"({warnings} warnings)");
-        }
-        
-        // Settings button on the right
-        ImGui.SameLine(ImGui.GetContentRegionMax().X - 25);
-        if (ImGuiComponents.IconButton(Dalamud.Interface.FontAwesomeIcon.Cog))
-        {
-            Plugin.ToggleConfigUI();
-        }
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Settings");
-        
-        // Compact filter bar
-        ImGui.SetNextItemWidth(100);
-        ImGui.InputTextWithHint("##Search", "Search...", ref _searchFilter, 50);
-        
-        ImGui.SameLine();
-        ImGui.SetNextItemWidth(100);
-        if (ImGui.BeginCombo("##Filter", _filterType?.ToString() ?? "All"))
-        {
-            if (ImGui.Selectable("All", _filterType == null))
-                _filterType = null;
+            // Compact filter bar
+            ImGui.SetNextItemWidth(120);
+            ImGui.InputTextWithHint("##Search", "Search...", ref _searchFilter, 50);
             
-            foreach (ModuleType type in Enum.GetValues<ModuleType>())
+            ImGui.SameLine();
+            ImGui.SetNextItemWidth(120);
+            if (ImGui.BeginCombo("##Filter", _filterType?.ToString() ?? "All"))
             {
-                if (ImGui.Selectable(type.ToString(), _filterType == type))
-                    _filterType = type;
+                if (ImGui.Selectable("All", _filterType == null))
+                    _filterType = null;
+                
+                foreach (ModuleType type in Enum.GetValues<ModuleType>())
+                {
+                    if (ImGui.Selectable(type.ToString(), _filterType == type))
+                        _filterType = type;
+                }
+                ImGui.EndCombo();
             }
-            ImGui.EndCombo();
+            
+            ImGui.SameLine();
+            ImGui.Checkbox("Show Complete", ref _showCompleted);
         }
-        
-        ImGui.SameLine();
-        ImGui.Checkbox("Complete", ref _showCompleted);
+        catch (Exception ex)
+        {
+            ImGui.TextColored(new Vector4(1, 0, 0, 1), "Error in header");
+            Plugin.Log.Error(ex, "Error in DrawHeader");
+        }
     }
 
     private void DrawContent()
@@ -115,40 +113,62 @@ public class MainWindow : Window, IDisposable
         
         if (ImGui.BeginChild("ModuleList", new Vector2(0, availableHeight), false))
         {
-            var modules = Plugin.ModuleManager.GetModules()
-                .Where(m => m.IsEnabled)
-                .Where(m => _filterType == null || m.Type == _filterType)
-                .Where(m => string.IsNullOrEmpty(_searchFilter) || 
-                           m.Name.Contains(_searchFilter, StringComparison.OrdinalIgnoreCase))
-                .Where(m => _showCompleted || m.Status != ModuleStatus.Complete)
-                .OrderBy(m => m.Status == ModuleStatus.Complete)
-                .ThenBy(m => m.Type)
-                .ThenBy(m => m.Name);
-
-            if (!modules.Any())
+            try
             {
-                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "No modules to display");
-            }
-            else
-            {
-                // Group by type for better organization
-                var grouped = modules.GroupBy(m => m.Type);
-                
-                foreach (var group in grouped)
+                var allModules = PluginInstance.ModuleManager?.GetModules();
+                if (allModules == null)
                 {
-                    ImGui.PushStyleColor(ImGuiCol.Text, GetTypeColor(group.Key));
-                    ImGui.Text(GetTypeIcon(group.Key) + " " + group.Key.ToString());
-                    ImGui.PopStyleColor();
-                    
-                    ImGui.Indent();
-                    foreach (var module in group)
-                    {
-                        DrawCompactModule(module);
-                    }
-                    ImGui.Unindent();
-                    
-                    ImGui.Spacing();
+                    ImGui.TextColored(new Vector4(1, 0, 0, 1), "Module manager not initialized");
+                    ImGui.EndChild();
+                    return;
                 }
+                
+                var modules = allModules
+                    .Where(m => m != null && m.IsEnabled)
+                    .Where(m => _filterType == null || m.Type == _filterType)
+                    .Where(m => string.IsNullOrEmpty(_searchFilter) || 
+                               m.Name.Contains(_searchFilter, StringComparison.OrdinalIgnoreCase))
+                    .Where(m => _showCompleted || m.Status != ModuleStatus.Complete)
+                    .OrderBy(m => m.Status == ModuleStatus.Complete)
+                    .ThenBy(m => m.Type)
+                    .ThenBy(m => m.Name)
+                    .ToList();
+
+                if (!modules.Any())
+                {
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "No modules to display");
+                }
+                else
+                {
+                    // Group by type for better organization
+                    var grouped = modules.GroupBy(m => m.Type);
+                    
+                    foreach (var group in grouped)
+                    {
+                                            ImGui.PushStyleColor(ImGuiCol.Text, GetTypeColor(group.Key));
+                    ImGui.PushFont(UiBuilder.IconFont);
+                    ImGui.Text(GetTypeIcon(group.Key));
+                    ImGui.PopFont();
+                    ImGui.SameLine();
+                    ImGui.Text(group.Key.ToString());
+                    ImGui.PopStyleColor();
+                        
+                        ImGui.Indent();
+                        foreach (var module in group)
+                        {
+                            DrawCompactModule(module);
+                        }
+                        ImGui.Unindent();
+                        
+                        ImGui.Spacing();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                ImGui.TextColored(new Vector4(1, 0, 0, 1), "Error displaying modules");
+                ImGui.Text($"Details: {ex.Message}");
+                Plugin.Log.Error(ex, "Error in DrawContent");
             }
         }
         ImGui.EndChild();
@@ -160,18 +180,29 @@ public class MainWindow : Window, IDisposable
         var statusColor = GetStatusColor(status);
         var statusIcon = GetStatusIcon(status);
         
+        ImGui.PushID(module.Name);
+        
+        // Create an invisible button for the entire row (for hover detection)
+        var startPos = ImGui.GetCursorPos();
+        ImGui.SetCursorPos(startPos);
+        ImGui.InvisibleButton($"module_{module.Name}", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetTextLineHeight()));
+        var isHovered = ImGui.IsItemHovered();
+        
+        // Draw on top of the invisible button
+        ImGui.SetCursorPos(startPos);
+        
         // Module name with status icon
+        ImGui.PushFont(UiBuilder.IconFont);
         ImGui.TextColored(statusColor, statusIcon);
+        ImGui.PopFont();
         ImGui.SameLine();
         ImGui.Text(module.Name);
         
         // Right-aligned status details
-        ImGui.SameLine(ImGui.GetContentRegionMax().X - 100);
+        var statusStartX = ImGui.GetContentRegionMax().X - 100;
+        ImGui.SameLine(statusStartX);
         
         // Draw module-specific compact status
-        ImGui.PushID(module.Name);
-        ImGui.BeginGroup();
-        
         try
         {
             DrawModuleCompactStatus(module);
@@ -179,14 +210,16 @@ public class MainWindow : Window, IDisposable
         catch (Exception ex)
         {
             ImGui.TextColored(new Vector4(1, 0, 0, 1), "Error");
-            Plugin.Log.Error(ex, $"Error drawing status for module {module.Name}");
+            Plugin.Log.Error(ex, $"Error drawing compact status for module {module.Name}");
         }
         
-        ImGui.EndGroup();
+        // Ensure we move to next line
+        ImGui.Dummy(new Vector2(0, 0));
+        
         ImGui.PopID();
         
         // Hover tooltip with more details
-        if (ImGui.IsItemHovered())
+        if (isHovered)
         {
             ImGui.BeginTooltip();
             ImGui.Text($"{module.Name} ({module.Type})");
@@ -199,6 +232,7 @@ public class MainWindow : Window, IDisposable
             catch (Exception ex)
             {
                 ImGui.TextColored(new Vector4(1, 0, 0, 1), $"Error: {ex.Message}");
+                Plugin.Log.Error(ex, $"Error drawing tooltip status for module {module.Name}");
             }
             
             ImGui.EndTooltip();
@@ -218,22 +252,31 @@ public class MainWindow : Window, IDisposable
                     if (primary != null)
                     {
                         var color = primary.HasWarning ? new Vector4(1, 0.5f, 0, 1) : GetStatusColor(module.Status);
-                        ImGui.TextColored(color, $"{primary.CurrentCount:N0}/{primary.Threshold:N0}");
+                        var maxDisplay = primary.MaxCount > 0 ? primary.MaxCount : primary.Threshold;
+                        ImGui.TextColored(color, $"{primary.CurrentCount:N0}/{maxDisplay:N0}");
                     }
                 }
                 break;
                 
             case ModuleType.Daily:
             case ModuleType.Weekly:
-                // Show simple status text
-                var statusText = module.Status switch
+                // Show simple status text with icon
+                if (module.Status == ModuleStatus.Complete)
                 {
-                    ModuleStatus.Complete => "✓",
-                    ModuleStatus.InProgress => "...",
-                    ModuleStatus.Incomplete => "○",
-                    _ => "?"
-                };
-                ImGui.TextColored(GetStatusColor(module.Status), statusText);
+                    ImGui.PushFont(UiBuilder.IconFont);
+                    ImGui.TextColored(GetStatusColor(module.Status), ((char)FontAwesomeIcon.Check).ToString());
+                    ImGui.PopFont();
+                }
+                else
+                {
+                    var statusText = module.Status switch
+                    {
+                        ModuleStatus.InProgress => "In Progress",
+                        ModuleStatus.Incomplete => "Not Started",
+                        _ => "?"
+                    };
+                    ImGui.TextColored(GetStatusColor(module.Status), statusText);
+                }
                 break;
                 
             case ModuleType.Special:
@@ -245,25 +288,27 @@ public class MainWindow : Window, IDisposable
 
     private string GetTypeIcon(ModuleType type)
     {
-        return type switch
+        var icon = type switch
         {
-            ModuleType.Currency => "💰",
-            ModuleType.Daily => "📅",
-            ModuleType.Weekly => "📆",
-            ModuleType.Special => "⭐",
-            _ => "📋"
+            ModuleType.Currency => FontAwesomeIcon.Coins,
+            ModuleType.Daily => FontAwesomeIcon.CalendarDay,
+            ModuleType.Weekly => FontAwesomeIcon.CalendarWeek,
+            ModuleType.Special => FontAwesomeIcon.Star,
+            _ => FontAwesomeIcon.List
         };
+        return ((char)icon).ToString();
     }
 
     private string GetStatusIcon(ModuleStatus status)
     {
-        return status switch
+        var icon = status switch
         {
-            ModuleStatus.Complete => "✓",
-            ModuleStatus.InProgress => "⚠",
-            ModuleStatus.Incomplete => "○",
-            _ => "?"
+            ModuleStatus.Complete => FontAwesomeIcon.CheckCircle,
+            ModuleStatus.InProgress => FontAwesomeIcon.ExclamationTriangle,
+            ModuleStatus.Incomplete => FontAwesomeIcon.Circle,
+            _ => FontAwesomeIcon.Question
         };
+        return ((char)icon).ToString();
     }
 
     private Vector4 GetTypeColor(ModuleType type)

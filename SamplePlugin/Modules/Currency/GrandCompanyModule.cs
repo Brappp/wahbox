@@ -33,6 +33,7 @@ public class GrandCompanyModule : BaseModule, ICurrencyModule
                 Type = CurrencyType.Item, 
                 ItemId = 20,  // Storm Seals
                 Threshold = 75000,
+            MaxCount = 90000,
                 Enabled = true,
                 ShowInOverlay = true,
                 WarningText = Plugin.Instance.LocalizationManager.GetString("currency.near_cap"),
@@ -43,6 +44,7 @@ public class GrandCompanyModule : BaseModule, ICurrencyModule
                 Type = CurrencyType.Item, 
                 ItemId = 21,  // Serpent Seals
                 Threshold = 75000,
+            MaxCount = 90000,
                 Enabled = true,
                 ShowInOverlay = true,
                 WarningText = Plugin.Instance.LocalizationManager.GetString("currency.near_cap"),
@@ -53,6 +55,7 @@ public class GrandCompanyModule : BaseModule, ICurrencyModule
                 Type = CurrencyType.Item, 
                 ItemId = 22,  // Flame Seals
                 Threshold = 75000,
+            MaxCount = 90000,
                 Enabled = true,
                 ShowInOverlay = true,
                 WarningText = Plugin.Instance.LocalizationManager.GetString("currency.near_cap"),
@@ -152,7 +155,8 @@ public class GrandCompanyModule : BaseModule, ICurrencyModule
                 ImGui.SameLine();
             }
 
-            ImGui.Text($"{currency.Name}: {currency.CurrentCount:N0} / {currency.Threshold:N0}");
+            var maxDisplay = currency.MaxCount > 0 ? currency.MaxCount : currency.Threshold;
+            ImGui.Text($"{currency.Name}: {currency.CurrentCount:N0} / {maxDisplay:N0}");
             
             ImGui.SameLine();
             var enabled = currency.Enabled;

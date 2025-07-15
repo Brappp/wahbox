@@ -5,6 +5,7 @@ using Dalamud.Interface.Windowing;
 using ImGuiNET;
 using Dalamud.Interface.Utility;
 using Dalamud.Interface.Components;
+using Dalamud.Interface;
 using SamplePlugin.Core.Interfaces;
 
 namespace SamplePlugin.Windows;
@@ -19,11 +20,11 @@ public class ConfigWindow : Window, IDisposable
 
     public ConfigWindow(Plugin plugin) : base("Wahdori Settings###WahdoriConfig")
     {
-        Size = new Vector2(500, 450);
+        Size = new Vector2(400, 350);
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(450, 400),
-            MaximumSize = new Vector2(600, 600)
+            MinimumSize = new Vector2(350, 300),
+            MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
 
         Configuration = plugin.Configuration;
@@ -34,28 +35,28 @@ public class ConfigWindow : Window, IDisposable
 
     public override void Draw()
     {
-        // Compact tab bar with icons
+        // Compact tab bar - using text labels since icons in tabs are tricky
         if (ImGui.BeginTabBar("ConfigTabs"))
         {
-            if (ImGui.BeginTabItem("⚙ General"))
+            if (ImGui.BeginTabItem("General"))
             {
                 DrawGeneralSettings();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("📦 Modules"))
+            if (ImGui.BeginTabItem("Modules"))
             {
                 DrawModulesSettings();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("🔲 Overlays"))
+            if (ImGui.BeginTabItem("Overlays"))
             {
                 DrawOverlaySettings();
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("🔔 Alerts"))
+            if (ImGui.BeginTabItem("Alerts"))
             {
                 DrawAlertSettings();
                 ImGui.EndTabItem();
@@ -67,84 +68,71 @@ public class ConfigWindow : Window, IDisposable
 
     private void DrawGeneralSettings()
     {
-        ImGui.TextWrapped("General Settings");
-        ImGui.Separator();
-        ImGui.Spacing();
-
         // Window Settings
-        if (ImGui.CollapsingHeader("Window Settings", ImGuiTreeNodeFlags.DefaultOpen))
+        ImGui.Text("Window Settings");
+        ImGui.Separator();
+        
+        var opacity = Configuration.UISettings.WindowOpacity;
+        ImGui.SetNextItemWidth(150);
+        if (ImGui.SliderFloat("Opacity", ref opacity, 0.1f, 1.0f, "%.1f"))
         {
-            ImGui.Indent();
-            
-            var opacity = Configuration.UISettings.WindowOpacity;
-            ImGui.SetNextItemWidth(200);
-            if (ImGui.SliderFloat("Window Opacity", ref opacity, 0.1f, 1.0f, "%.1f"))
-            {
-                Configuration.UISettings.WindowOpacity = opacity;
-                Configuration.Save();
-            }
-            
-            var hideInCombat = Configuration.UISettings.HideInCombat;
-            if (ImGui.Checkbox("Hide Windows in Combat", ref hideInCombat))
-            {
-                Configuration.UISettings.HideInCombat = hideInCombat;
-                Configuration.Save();
-            }
-            
-            var hideInDuty = Configuration.UISettings.HideInDuty;
-            if (ImGui.Checkbox("Hide Windows in Duty", ref hideInDuty))
-            {
-                Configuration.UISettings.HideInDuty = hideInDuty;
-                Configuration.Save();
-            }
-            
-            ImGui.Unindent();
+            Configuration.UISettings.WindowOpacity = opacity;
+            Configuration.Save();
         }
+        
+        var hideInCombat = Configuration.UISettings.HideInCombat;
+        if (ImGui.Checkbox("Hide in Combat", ref hideInCombat))
+        {
+            Configuration.UISettings.HideInCombat = hideInCombat;
+            Configuration.Save();
+        }
+        
+        ImGui.SameLine();
+        var hideInDuty = Configuration.UISettings.HideInDuty;
+        if (ImGui.Checkbox("Hide in Duty", ref hideInDuty))
+        {
+            Configuration.UISettings.HideInDuty = hideInDuty;
+            Configuration.Save();
+        }
+        
+        ImGui.Spacing();
         
         // Display Settings
-        if (ImGui.CollapsingHeader("Display Settings"))
+        ImGui.Text("Display");
+        ImGui.Separator();
+        
+        var sortByStatus = Configuration.UISettings.SortByStatus;
+        if (ImGui.Checkbox("Sort by Status", ref sortByStatus))
         {
-            ImGui.Indent();
-            
-            var sortByStatus = Configuration.UISettings.SortByStatus;
-            if (ImGui.Checkbox("Sort Modules by Status", ref sortByStatus))
-            {
-                Configuration.UISettings.SortByStatus = sortByStatus;
-                Configuration.Save();
-            }
-            
-            var showDisabledModules = Configuration.UISettings.ShowDisabledModules;
-            if (ImGui.Checkbox("Show Disabled Modules", ref showDisabledModules))
-            {
-                Configuration.UISettings.ShowDisabledModules = showDisabledModules;
-                Configuration.Save();
-            }
-            
-            ImGui.Unindent();
+            Configuration.UISettings.SortByStatus = sortByStatus;
+            Configuration.Save();
         }
         
-        // Language Settings
-        if (ImGui.CollapsingHeader("Language"))
+        ImGui.SameLine();
+        var showDisabledModules = Configuration.UISettings.ShowDisabledModules;
+        if (ImGui.Checkbox("Show Disabled", ref showDisabledModules))
         {
-            ImGui.Indent();
-            
-            var currentLang = Configuration.Language;
-            ImGui.SetNextItemWidth(150);
-            if (ImGui.BeginCombo("Language", currentLang))
+            Configuration.UISettings.ShowDisabledModules = showDisabledModules;
+            Configuration.Save();
+        }
+        
+        ImGui.Spacing();
+        
+        // Language
+        var currentLang = Configuration.Language;
+        ImGui.SetNextItemWidth(150);
+        if (ImGui.BeginCombo("Language", currentLang))
+        {
+            foreach (var lang in new[] { "English", "日本語", "Deutsch", "Français" })
             {
-                foreach (var lang in new[] { "English", "日本語", "Deutsch", "Français" })
+                if (ImGui.Selectable(lang, lang == currentLang))
                 {
-                    if (ImGui.Selectable(lang, lang == currentLang))
-                    {
-                        Configuration.Language = lang;
-                        Configuration.Save();
-                        Plugin.LocalizationManager.SetLanguage(lang);
-                    }
+                    Configuration.Language = lang;
+                    Configuration.Save();
+                    Plugin.LocalizationManager.SetLanguage(lang);
                 }
-                ImGui.EndCombo();
             }
-            
-            ImGui.Unindent();
+            ImGui.EndCombo();
         }
     }
 

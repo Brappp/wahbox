@@ -24,6 +24,7 @@ public unsafe class TrackedCurrency
 
     public required CurrencyType Type { get; init; }
     public required int Threshold { get; set; }
+    public int MaxCount { get; set; } = 0; // Maximum possible value for the currency
     public bool Enabled { get; set; } = true;
     public bool ChatWarning { get; set; }
     public bool ShowInOverlay { get; set; }
@@ -68,6 +69,8 @@ public unsafe class TrackedCurrency
                 var inventoryManager = InventoryManager.Instance();
                 if (inventoryManager == null) return 0;
                 
+                // Get item count - this returns 0 for special currencies like Wolf Marks
+                // TODO: Need to implement proper special currency handling
                 return inventoryManager->GetInventoryItemCount(ItemId, Type is CurrencyType.HighQualityItem, false, false);
             }
             catch
