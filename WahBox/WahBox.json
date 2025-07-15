@@ -1,0 +1,22 @@
+{
+  "Author": "Your Name",
+  "Name": "WahBox",
+  "InternalName": "WahBox",
+  "Punchline": "Combined tracker for FFXIV currencies and tasks",
+  "Description": "Track currencies, daily tasks, weekly tasks, and more in one convenient plugin. Features customizable alerts, overlay support, and comprehensive activity management.",
+  "RepoUrl": "https://github.com/yourusername/WahBox",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "currency",
+    "daily",
+    "weekly", 
+    "tracker",
+    "utility",
+    "overlay",
+    "tomestones",
+    "duties"
+  ],
+  "CategoryTags": [
+    "utility"
+  ]
+}
