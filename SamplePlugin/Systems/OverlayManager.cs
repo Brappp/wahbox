@@ -100,7 +100,7 @@ public class UnifiedOverlay : IDisposable
         // Use SetNextWindowBgAlpha instead of pushing style colors
         if (Plugin.Configuration.OverlaySettings.ShowBackground)
         {
-            ImGui.SetNextWindowBgAlpha(0.4f * Plugin.Configuration.OverlaySettings.Opacity);
+            ImGui.SetNextWindowBgAlpha(1.0f);
         }
         else
         {

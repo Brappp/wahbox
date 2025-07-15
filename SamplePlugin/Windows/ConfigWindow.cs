@@ -71,14 +71,6 @@ public class ConfigWindow : Window, IDisposable
         ImGui.Text("Window Settings");
         ImGui.Separator();
         
-        var opacity = Configuration.UISettings.WindowOpacity;
-        ImGui.SetNextItemWidth(150);
-        if (ImGui.SliderFloat("Opacity", ref opacity, 0.1f, 1.0f, "%.1f"))
-        {
-            Configuration.UISettings.WindowOpacity = opacity;
-            Configuration.Save();
-        }
-        
         var hideInCombat = Configuration.UISettings.HideInCombat;
         if (ImGui.Checkbox("Hide in Combat", ref hideInCombat))
         {
@@ -104,14 +96,6 @@ public class ConfigWindow : Window, IDisposable
         if (ImGui.Checkbox("Sort by Status", ref sortByStatus))
         {
             Configuration.UISettings.SortByStatus = sortByStatus;
-            Configuration.Save();
-        }
-        
-        ImGui.SameLine();
-        var showDisabledModules = Configuration.UISettings.ShowDisabledModules;
-        if (ImGui.Checkbox("Show Disabled", ref showDisabledModules))
-        {
-            Configuration.UISettings.ShowDisabledModules = showDisabledModules;
             Configuration.Save();
         }
     }
@@ -217,15 +201,6 @@ public class ConfigWindow : Window, IDisposable
         if (overlaysEnabled)
         {
             ImGui.Spacing();
-            
-            // Opacity
-            var opacity = Configuration.OverlaySettings.Opacity;
-            ImGui.SetNextItemWidth(200);
-            if (ImGui.SliderFloat("Overlay Opacity", ref opacity, 0.1f, 1.0f, "%.1f"))
-            {
-                Configuration.OverlaySettings.Opacity = opacity;
-                Configuration.Save();
-            }
             
             // Background
             var showBackground = Configuration.OverlaySettings.ShowBackground;
