@@ -21,10 +21,16 @@ public unsafe class TrackedCurrency
     private uint? _iconId;
     private uint? _itemId;
     private string? _name;
+    private int? _maxCount;
 
     public required CurrencyType Type { get; init; }
     public required int Threshold { get; set; }
-    public int MaxCount { get; set; } = 0; // Maximum possible value for the currency
+    
+    public int MaxCount 
+    { 
+        get => _maxCount ?? Core.CurrencyHelper.GetCurrencyMax(ItemId);
+        set => _maxCount = value;
+    }
     public bool Enabled { get; set; } = true;
     public bool ChatWarning { get; set; }
     public bool ShowInOverlay { get; set; }
@@ -66,12 +72,8 @@ public unsafe class TrackedCurrency
         {
             try
             {
-                var inventoryManager = InventoryManager.Instance();
-                if (inventoryManager == null) return 0;
-                
-                // Get item count - this returns 0 for special currencies like Wolf Marks
-                // TODO: Need to implement proper special currency handling
-                return inventoryManager->GetInventoryItemCount(ItemId, Type is CurrencyType.HighQualityItem, false, false);
+                // Use CurrencyHelper for proper currency handling
+                return Core.CurrencyHelper.GetCurrencyCount(ItemId);
             }
             catch
             {
@@ -94,6 +96,12 @@ public unsafe class TrackedCurrency
                 CurrencyType.LimitedTomestone => GetCurrentLimitedTomestoneId(),
                 _ => throw new Exception($"ItemId not initialized for type: {Type}"),
             };
+            
+            // Set max count for tomestones
+            if (_itemId > 0 && (Type == CurrencyType.NonLimitedTomestone || Type == CurrencyType.LimitedTomestone))
+            {
+                MaxCount = 2000;
+            }
         }
 
         return _itemId ?? 0;
