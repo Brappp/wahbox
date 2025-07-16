@@ -5,7 +5,6 @@ using WahBox.Core;
 using WahBox.Core.Interfaces;
 using ImGuiNET;
 using Lumina.Excel.Sheets;
-using FFXIVClientStructs.FFXIV.Client.UI.Agent;
 
 namespace WahBox.Modules.Daily;
 

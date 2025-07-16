@@ -49,12 +49,6 @@ public class ConfigWindow : Window, IDisposable
                 ImGui.EndTabItem();
             }
 
-            if (ImGui.BeginTabItem("Overlays"))
-            {
-                DrawOverlaySettings();
-                ImGui.EndTabItem();
-            }
-
             if (ImGui.BeginTabItem("Alerts"))
             {
                 DrawAlertSettings();
@@ -182,93 +176,6 @@ public class ConfigWindow : Window, IDisposable
             }
         }
         ImGui.EndChild();
-    }
-
-    private void DrawOverlaySettings()
-    {
-        ImGui.TextWrapped("Overlay Settings");
-        ImGui.Separator();
-        ImGui.Spacing();
-        
-        // Global overlay settings
-        var overlaysEnabled = Configuration.OverlaySettings.Enabled;
-        if (ImGui.Checkbox("Enable Overlays", ref overlaysEnabled))
-        {
-            Configuration.OverlaySettings.Enabled = overlaysEnabled;
-            Configuration.Save();
-        }
-        
-        if (overlaysEnabled)
-        {
-            ImGui.Spacing();
-            
-            // Background
-            var showBackground = Configuration.OverlaySettings.ShowBackground;
-            if (ImGui.Checkbox("Show Background", ref showBackground))
-            {
-                Configuration.OverlaySettings.ShowBackground = showBackground;
-                Configuration.Save();
-            }
-            
-            // Text Labels
-            var showText = Configuration.OverlaySettings.ShowText;
-            if (ImGui.Checkbox("Show Text Labels", ref showText))
-            {
-                Configuration.OverlaySettings.ShowText = showText;
-                Configuration.Save();
-            }
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetTooltip("When disabled, shows only icons with numbers/status indicators");
-            }
-            
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-            
-            // Individual overlay settings
-            if (ImGui.CollapsingHeader("Currency Warnings Overlay"))
-            {
-                ImGui.Indent();
-                
-                var showCurrency = Configuration.OverlaySettings.ShowCurrencyWarnings;
-                if (ImGui.Checkbox("Show Currency Warnings", ref showCurrency))
-                {
-                    Configuration.OverlaySettings.ShowCurrencyWarnings = showCurrency;
-                    Configuration.Save();
-                }
-                
-                ImGui.Unindent();
-            }
-            
-            if (ImGui.CollapsingHeader("Daily Tasks Overlay"))
-            {
-                ImGui.Indent();
-                
-                var showDaily = Configuration.OverlaySettings.ShowDailyTasks;
-                if (ImGui.Checkbox("Show Daily Tasks", ref showDaily))
-                {
-                    Configuration.OverlaySettings.ShowDailyTasks = showDaily;
-                    Configuration.Save();
-                }
-                
-                ImGui.Unindent();
-            }
-            
-            if (ImGui.CollapsingHeader("Weekly Tasks Overlay"))
-            {
-                ImGui.Indent();
-                
-                var showWeekly = Configuration.OverlaySettings.ShowWeeklyTasks;
-                if (ImGui.Checkbox("Show Weekly Tasks", ref showWeekly))
-                {
-                    Configuration.OverlaySettings.ShowWeeklyTasks = showWeekly;
-                    Configuration.Save();
-                }
-                
-                ImGui.Unindent();
-            }
-        }
     }
 
     private void DrawAlertSettings()

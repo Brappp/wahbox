@@ -28,22 +28,19 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IGameInteropProvider GameInteropProvider { get; private set; } = null!;
     [PluginService] internal static IPluginLog PluginLog { get; private set; } = null!;
 
-    public string Name => "Wahdori";
+    public string Name => "WahBox";
     
     // Core systems
     internal static Plugin Instance { get; private set; } = null!;
     internal Core.ModuleManager ModuleManager { get; private set; } = null!;
-    internal Systems.OverlayManager OverlayManager { get; private set; } = null!;
-    internal Systems.PayloadSystem PayloadSystem { get; private set; } = null!;
     internal Systems.TeleportManager TeleportManager { get; private set; } = null!;
     internal Systems.NotificationManager NotificationManager { get; private set; } = null!;
 
-    private const string MainCommand = "/wahdori";
-    private const string ConfigCommand = "/wdcfg";
+    private const string MainCommand = "/wahbox";
 
     public Configuration Configuration { get; init; }
 
-    public readonly WindowSystem WindowSystem = new("Wahdori");
+    public readonly WindowSystem WindowSystem = new("WahBox");
     private ConfigWindow ConfigWindow { get; init; }
     private MainWindow MainWindow { get; init; }
 
@@ -71,12 +68,7 @@ public sealed class Plugin : IDalamudPlugin
         // Register commands
         CommandManager.AddHandler(MainCommand, new CommandInfo(OnMainCommand)
         {
-            HelpMessage = "Open Wahdori main window - Currency alerts and daily duties tracker"
-        });
-        
-        CommandManager.AddHandler(ConfigCommand, new CommandInfo(OnConfigCommand)
-        {
-            HelpMessage = "Open Wahdori configuration"
+            HelpMessage = "Open WahBox main window - Currency alerts and daily duties tracker"
         });
 
         PluginInterface.UiBuilder.Draw += DrawUI;
@@ -97,11 +89,9 @@ public sealed class Plugin : IDalamudPlugin
 
     private void InitializeSystems()
     {
-        PayloadSystem = new Systems.PayloadSystem();
         TeleportManager = new Systems.TeleportManager();
         NotificationManager = new Systems.NotificationManager();
         ModuleManager = new Core.ModuleManager(this);
-        OverlayManager = new Systems.OverlayManager(this);
         
         // Initialize localization first
         // (Localization is simple now, no initialization needed)
@@ -114,13 +104,14 @@ public sealed class Plugin : IDalamudPlugin
         
         // Initialize after registration
         ModuleManager.Initialize();
-        OverlayManager.Initialize();
     }
     
     private void RegisterModules()
     {
         // Currency modules (from CurrencyAlert)
-        ModuleManager.RegisterModule(new Modules.Currency.TomestoneModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.NonLimitedTomestoneModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.LimitedTomestoneModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.PoeticTomestoneModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.GrandCompanyModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.AlliedSealsModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.CenturioSealsModule(this));
@@ -129,7 +120,6 @@ public sealed class Plugin : IDalamudPlugin
         ModuleManager.RegisterModule(new Modules.Currency.TrophyCrystalsModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.BicolorGemstonesModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.SkybuildersScripModule(this));
-        ModuleManager.RegisterModule(new Modules.Currency.PoeticTomestoneModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.WhiteScripsModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.PurpleScripsModule(this));
         
@@ -193,8 +183,6 @@ public sealed class Plugin : IDalamudPlugin
     private void OnFrameworkUpdate(IFramework framework)
     {
         ModuleManager.UpdateAll();
-        // Refresh overlays to reflect changes
-        OverlayManager.RefreshOverlay();
     }
     
     private void LoadCharacterData()
@@ -223,15 +211,12 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow.Dispose();
 
         CommandManager.RemoveHandler(MainCommand);
-        CommandManager.RemoveHandler(ConfigCommand);
         
         // Dispose systems in reverse order
-        OverlayManager?.Dispose();
         ModuleManager?.Dispose();
         // Removed localization
         NotificationManager?.Dispose();
         TeleportManager?.Dispose();
-        PayloadSystem?.Dispose();
         
         ECommonsMain.Dispose();
     }
@@ -241,10 +226,7 @@ public sealed class Plugin : IDalamudPlugin
         ToggleMainUI();
     }
     
-    private void OnConfigCommand(string command, string args)
-    {
-        ToggleConfigUI();
-    }
+
 
     private void DrawUI()
     {

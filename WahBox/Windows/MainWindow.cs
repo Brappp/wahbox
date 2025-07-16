@@ -9,6 +9,7 @@ using Dalamud.Interface.Components;
 using Dalamud.Interface;
 using ImGuiNET;
 using WahBox.Core.Interfaces;
+using WahBox.Models;
 
 namespace WahBox.Windows;
 
@@ -22,7 +23,7 @@ public class MainWindow : Window, IDisposable
     private bool _showCompleted = true;
     private ModuleType? _filterType = null;
 
-    public MainWindow(Plugin plugin, string goatImagePath) : base("Wahdori##Main")
+    public MainWindow(Plugin plugin, string goatImagePath) : base("WahBox##Main")
     {
         GoatImagePath = goatImagePath;
         PluginInstance = plugin;
@@ -181,10 +182,13 @@ public class MainWindow : Window, IDisposable
         
         ImGui.PushID(module.Name);
         
+        // Use standard row height for all modules
+        float rowHeight = ImGui.GetTextLineHeight();
+        
         // Create an invisible button for the entire row (for hover detection)
         var startPos = ImGui.GetCursorPos();
         ImGui.SetCursorPos(startPos);
-        ImGui.InvisibleButton($"module_{module.Name}", new Vector2(ImGui.GetContentRegionAvail().X, ImGui.GetTextLineHeight()));
+        ImGui.InvisibleButton($"module_{module.Name}", new Vector2(ImGui.GetContentRegionAvail().X, rowHeight));
         var isHovered = ImGui.IsItemHovered();
         
         // Draw on top of the invisible button
@@ -234,7 +238,7 @@ public class MainWindow : Window, IDisposable
         // Draw module-specific compact status
         try
         {
-            DrawModuleCompactStatus(module);
+            DrawModuleCompactStatus(module, statusStartX);
         }
         catch (Exception ex)
         {
@@ -268,7 +272,7 @@ public class MainWindow : Window, IDisposable
         }
     }
 
-    private void DrawModuleCompactStatus(IModule module)
+    private void DrawModuleCompactStatus(IModule module, float statusStartX)
     {
         switch (module.Type)
         {
@@ -277,6 +281,8 @@ public class MainWindow : Window, IDisposable
                 if (module is ICurrencyModule currencyModule)
                 {
                     var currencies = currencyModule.GetTrackedCurrencies();
+                    
+                    // Show the primary currency
                     var primary = currencies.FirstOrDefault(c => c.Enabled);
                     if (primary != null)
                     {
