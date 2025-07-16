@@ -4,8 +4,8 @@
 
 ### Tomestones
 - ✅ **Poetics** (ID: 28) - Max: 2,000
-- ✅ **Non-Limited Tomestone** (Dynamic ID) - Max: 2,000  
-- ✅ **Limited Tomestone** (Dynamic ID) - Max: 2,000
+- ✅ **Aesthetics** (ID: 47) - Max: 2,000 - Non-limited tomestone for Dawntrail
+- ✅ **Heliometry** (ID: 48) - Max: 2,000 - Limited tomestone for Dawntrail (patch 7.05)
 
 ### Grand Company
 - ✅ **Storm Seals** (ID: 20) - Max: 90,000
@@ -41,7 +41,8 @@ The `CurrencyHelper` class properly handles:
 - Dynamic tomestone IDs that change each expansion
 
 ## Notes
-- Tomestone IDs change with each expansion but are properly detected
+- Tomestones are now listed individually (Poetics, Aesthetics, Heliometry) instead of using dynamic detection
 - Grand Company seals only track the player's current GC
 - All special currencies now properly retrieve their counts from game memory
 - Maximum values are automatically set for all known currencies
+- When new tomestones are added in future patches, new modules will need to be created

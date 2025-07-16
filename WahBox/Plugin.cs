@@ -109,9 +109,10 @@ public sealed class Plugin : IDalamudPlugin
     private void RegisterModules()
     {
         // Currency modules (from CurrencyAlert)
-        ModuleManager.RegisterModule(new Modules.Currency.NonLimitedTomestoneModule(this));
-        ModuleManager.RegisterModule(new Modules.Currency.LimitedTomestoneModule(this));
+        // Tomestones - listed individually
         ModuleManager.RegisterModule(new Modules.Currency.PoeticTomestoneModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.AestheticsTomestoneModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.HeliometryTomestoneModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.GrandCompanyModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.AlliedSealsModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.CenturioSealsModule(this));

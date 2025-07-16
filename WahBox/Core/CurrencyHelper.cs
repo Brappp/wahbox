@@ -150,10 +150,6 @@ public static unsafe class CurrencyHelper
     /// </summary>
     public static int GetCurrencyMax(uint itemId)
     {
-        // Check if it's a tomestone by looking at the item data
-        if (IsTomestone(itemId))
-            return 2000;
-            
         return itemId switch
         {
             // Grand Company Seals
@@ -171,15 +167,17 @@ public static unsafe class CurrencyHelper
             // Bicolor Gemstones
             26807 => 1000,
             
-            // All Tomestones
-            28 => 2000, // Poetics
+            // Tomestones
+            28 => 2000,     // Poetics
+            47 => 2000,     // Aesthetics
+            48 => 2000,     // Heliometry
             
             // Scrips
             25199 or 25200 => 4000, // White/Purple Scrips
             28063 => 10000, // Skybuilders
             
-            // Default
-            _ => 0
+            // Default - check if it's a tomestone
+            _ => IsTomestone(itemId) ? 2000 : 0
         };
     }
     
