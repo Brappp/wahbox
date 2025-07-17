@@ -25,7 +25,7 @@ public class TribalQuestsModule : BaseModule
         UpdateResetTime();
     }
 
-    public override void Update()
+    public override unsafe void Update()
     {
         if (!Plugin.ClientState.IsLoggedIn) return;
 
@@ -34,6 +34,15 @@ public class TribalQuestsModule : BaseModule
         {
             Reset();
             UpdateResetTime();
+        }
+
+        // Try to get actual quest allowance data
+        var questManager = FFXIVClientStructs.FFXIV.Client.Game.QuestManager.Instance();
+        if (questManager != null)
+        {
+            var remainingAllowances = questManager->GetBeastTribeAllowance();
+            var usedAllowances = _maximum - (int)remainingAllowances;
+            _current = usedAllowances;
         }
 
         // Update status

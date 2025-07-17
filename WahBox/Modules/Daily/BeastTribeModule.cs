@@ -104,17 +104,9 @@ public class BeastTribeModule : BaseModule
         _questsAvailable = (int)remainingAllowances;
         _questsCompleted = MaxDailyQuests - (int)remainingAllowances;
 
-        // Update tribe progress
-        var uiState = UIState.Instance();
-        if (uiState != null)
-        {
-            foreach (var tribe in _tribeProgress.Values)
-            {
-                // The beast reputation system uses a different structure
-                // For now, we'll just track the quests completed
-                tribe.IsMaxRank = false; // This would need proper implementation
-            }
-        }
+        // Update tribe progress - For now, just show quest allowances
+        // Individual tribe reputation tracking would need proper API research
+        // This shows the overall beast tribe quest allowance system
 
         // Update status
         if (_questsCompleted >= MaxDailyQuests)
@@ -218,19 +210,11 @@ public class BeastTribeModule : BaseModule
         
         if (_questsAvailable > 0)
         {
-            ImGui.TextUnformatted($"  {_questsAvailable} quests available");
+            ImGui.TextUnformatted($"  {_questsAvailable} allowances remaining");
         }
-
-        // Show progress for tracked tribes
-        var trackedTribes = _tribeProgress.Values.Where(t => t.IsTracked && !t.IsMaxRank).ToList();
-        if (trackedTribes.Any())
+        else
         {
-            ImGui.Spacing();
-            ImGui.TextUnformatted("Tribe Progress:");
-            foreach (var tribe in trackedTribes)
-            {
-                ImGui.TextUnformatted($"  {tribe.Name}: Rank {tribe.Rank}");
-            }
+            ImGui.TextUnformatted($"  All allowances used");
         }
     }
 } 
