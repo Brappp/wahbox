@@ -28,6 +28,7 @@
 
 ### Other
 - ✅ **Bicolor Gemstones** (ID: 26807) - Max: 1,000
+- ✅ **MGP (Manderville Gold Saucer Points)** (ID: 29) - Max: 9,999,999
 
 ## Special Currency Handling
 

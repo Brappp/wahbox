@@ -127,6 +127,7 @@ public sealed class Plugin : IDalamudPlugin
         ModuleManager.RegisterModule(new Modules.Currency.SkybuildersScripModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.WhiteScripsModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.PurpleScripsModule(this));
+        ModuleManager.RegisterModule(new Modules.Currency.MGPModule(this));
         
         // Daily modules (from DailyDuty)
         ModuleManager.RegisterModule(new Modules.Daily.DutyRouletteModule(this));

@@ -54,6 +54,9 @@ public static unsafe class CurrencyHelper
             // Bicolor Gemstones
             26807 => GetBicolorGemstones(),
             
+            // MGP (Manderville Gold Saucer Points)
+            29 => GetMGP(),
+            
             // Default - return inventory count
             _ => inventoryManager != null ? inventoryManager->GetInventoryItemCount(itemId, false, false, false) : 0
         };
@@ -145,6 +148,13 @@ public static unsafe class CurrencyHelper
         return inventoryManager != null ? inventoryManager->GetInventoryItemCount(26807, false, false, false) : 0;
     }
 
+    private static int GetMGP()
+    {
+        // MGP is in currency inventory
+        var inventoryManager = InventoryManager.Instance();
+        return inventoryManager != null ? inventoryManager->GetInventoryItemCount(29, false, false, false) : 0;
+    }
+
     /// <summary>
     /// Gets the maximum cap for a currency
     /// </summary>
@@ -166,6 +176,9 @@ public static unsafe class CurrencyHelper
             
             // Bicolor Gemstones
             26807 => 1000,
+            
+            // MGP (Manderville Gold Saucer Points)
+            29 => 9999999,
             
             // Tomestones
             28 => 2000,     // Poetics
