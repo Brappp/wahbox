@@ -439,9 +439,171 @@ public class RadarModule : BaseUtilityModule
         }
     }
 
+    protected override Dictionary<string, object> GetConfigurationData()
+    {
+        return new Dictionary<string, object>
+        {
+            // Basic settings
+            ["ShowRadarWindow"] = ShowRadarWindow,
+            ["DetectionRadius"] = DetectionRadius,
+            ["RotateWithCamera"] = RotateWithCamera,
+            ["ShowRadiusCircles"] = ShowRadiusCircles,
+            ["DrawPlayerLines"] = DrawPlayerLines,
+            ["TransparentBackground"] = TransparentBackground,
+            ["ShowAlertRing"] = ShowAlertRing,
+            
+            // Object visibility filters
+            ["ShowPlayers"] = ShowPlayers,
+            ["ShowNPCs"] = ShowNPCs,
+            ["ShowTreasure"] = ShowTreasure,
+            ["ShowGatheringPoints"] = ShowGatheringPoints,
+            ["ShowAetherytes"] = ShowAetherytes,
+            ["ShowEventObjects"] = ShowEventObjects,
+            ["ShowMounts"] = ShowMounts,
+            ["ShowCompanions"] = ShowCompanions,
+            ["ShowRetainers"] = ShowRetainers,
+            ["HideUnnamedObjects"] = HideUnnamedObjects,
+            
+            // Tether/Line options
+            ["DrawNPCTethers"] = DrawNPCTethers,
+            ["DrawTreasureTethers"] = DrawTreasureTethers,
+            ["DrawGatheringTethers"] = DrawGatheringTethers,
+            ["DrawAetheryteTethers"] = DrawAetheryteTethers,
+            
+            // Alert settings
+            ["EnablePlayerProximityAlert"] = EnablePlayerProximityAlert,
+            ["PlayerProximityAlertDistance"] = PlayerProximityAlertDistance,
+            ["PlayerProximityAlertCooldown"] = PlayerProximityAlertCooldown,
+            ["PlayerAlertFrequency"] = (int)PlayerAlertFrequency,
+            ["EnableAlertSound"] = EnableAlertSound,
+            ["PlayerProximityAlertSound"] = PlayerProximityAlertSound,
+            
+            // In-game overlay settings
+            ["EnableInGameDrawing"] = EnableInGameDrawing,
+            ["DrawPlayerCircle"] = DrawPlayerCircle,
+            ["DrawObjectDots"] = DrawObjectDots,
+            ["DrawDistanceText"] = DrawDistanceText,
+            ["InGameDotSize"] = InGameDotSize,
+            ["InGameLineThickness"] = InGameLineThickness,
+            
+            // Colors
+            ["InGamePlayerColor"] = new { InGamePlayerColor.X, InGamePlayerColor.Y, InGamePlayerColor.Z, InGamePlayerColor.W },
+            ["InGameNPCColor"] = new { InGameNPCColor.X, InGameNPCColor.Y, InGameNPCColor.Z, InGameNPCColor.W },
+            ["InGameTreasureColor"] = new { InGameTreasureColor.X, InGameTreasureColor.Y, InGameTreasureColor.Z, InGameTreasureColor.W },
+            ["InGameGatheringColor"] = new { InGameGatheringColor.X, InGameGatheringColor.Y, InGameGatheringColor.Z, InGameGatheringColor.W },
+            ["InGameAetheryteColor"] = new { InGameAetheryteColor.X, InGameAetheryteColor.Y, InGameAetheryteColor.Z, InGameAetheryteColor.W },
+            ["InGameRadiusColor"] = new { InGameRadiusColor.X, InGameRadiusColor.Y, InGameRadiusColor.Z, InGameRadiusColor.W },
+            ["InGameTextColor"] = new { InGameTextColor.X, InGameTextColor.Y, InGameTextColor.Z, InGameTextColor.W },
+            
+            // Window lock settings
+            ["LockRadarWindow"] = LockRadarWindow,
+            ["RadarWindowLockedPosition"] = new { RadarWindowLockedPosition.X, RadarWindowLockedPosition.Y }
+        };
+    }
+
+    protected override void SetConfigurationData(object config)
+    {
+        if (config is not Dictionary<string, object> configDict) return;
+
+        try
+        {
+            // Basic settings
+            if (configDict.TryGetValue("ShowRadarWindow", out var showRadarWindow))
+                ShowRadarWindow = Convert.ToBoolean(showRadarWindow);
+            if (configDict.TryGetValue("DetectionRadius", out var detectionRadius))
+                DetectionRadius = Convert.ToSingle(detectionRadius);
+            if (configDict.TryGetValue("RotateWithCamera", out var rotateWithCamera))
+                RotateWithCamera = Convert.ToBoolean(rotateWithCamera);
+            if (configDict.TryGetValue("ShowRadiusCircles", out var showRadiusCircles))
+                ShowRadiusCircles = Convert.ToBoolean(showRadiusCircles);
+            if (configDict.TryGetValue("DrawPlayerLines", out var drawPlayerLines))
+                DrawPlayerLines = Convert.ToBoolean(drawPlayerLines);
+            if (configDict.TryGetValue("TransparentBackground", out var transparentBackground))
+                TransparentBackground = Convert.ToBoolean(transparentBackground);
+            if (configDict.TryGetValue("ShowAlertRing", out var showAlertRing))
+                ShowAlertRing = Convert.ToBoolean(showAlertRing);
+            
+            // Object visibility filters
+            if (configDict.TryGetValue("ShowPlayers", out var showPlayers))
+                ShowPlayers = Convert.ToBoolean(showPlayers);
+            if (configDict.TryGetValue("ShowNPCs", out var showNPCs))
+                ShowNPCs = Convert.ToBoolean(showNPCs);
+            if (configDict.TryGetValue("ShowTreasure", out var showTreasure))
+                ShowTreasure = Convert.ToBoolean(showTreasure);
+            if (configDict.TryGetValue("ShowGatheringPoints", out var showGatheringPoints))
+                ShowGatheringPoints = Convert.ToBoolean(showGatheringPoints);
+            if (configDict.TryGetValue("ShowAetherytes", out var showAetherytes))
+                ShowAetherytes = Convert.ToBoolean(showAetherytes);
+            if (configDict.TryGetValue("ShowEventObjects", out var showEventObjects))
+                ShowEventObjects = Convert.ToBoolean(showEventObjects);
+            if (configDict.TryGetValue("ShowMounts", out var showMounts))
+                ShowMounts = Convert.ToBoolean(showMounts);
+            if (configDict.TryGetValue("ShowCompanions", out var showCompanions))
+                ShowCompanions = Convert.ToBoolean(showCompanions);
+            if (configDict.TryGetValue("ShowRetainers", out var showRetainers))
+                ShowRetainers = Convert.ToBoolean(showRetainers);
+            if (configDict.TryGetValue("HideUnnamedObjects", out var hideUnnamedObjects))
+                HideUnnamedObjects = Convert.ToBoolean(hideUnnamedObjects);
+            
+            // Tether/Line options
+            if (configDict.TryGetValue("DrawNPCTethers", out var drawNPCTethers))
+                DrawNPCTethers = Convert.ToBoolean(drawNPCTethers);
+            if (configDict.TryGetValue("DrawTreasureTethers", out var drawTreasureTethers))
+                DrawTreasureTethers = Convert.ToBoolean(drawTreasureTethers);
+            if (configDict.TryGetValue("DrawGatheringTethers", out var drawGatheringTethers))
+                DrawGatheringTethers = Convert.ToBoolean(drawGatheringTethers);
+            if (configDict.TryGetValue("DrawAetheryteTethers", out var drawAetheryteTethers))
+                DrawAetheryteTethers = Convert.ToBoolean(drawAetheryteTethers);
+            
+            // Alert settings
+            if (configDict.TryGetValue("EnablePlayerProximityAlert", out var enablePlayerProximityAlert))
+                EnablePlayerProximityAlert = Convert.ToBoolean(enablePlayerProximityAlert);
+            if (configDict.TryGetValue("PlayerProximityAlertDistance", out var playerProximityAlertDistance))
+                PlayerProximityAlertDistance = Convert.ToSingle(playerProximityAlertDistance);
+            if (configDict.TryGetValue("PlayerProximityAlertCooldown", out var playerProximityAlertCooldown))
+                PlayerProximityAlertCooldown = Convert.ToSingle(playerProximityAlertCooldown);
+            if (configDict.TryGetValue("PlayerAlertFrequency", out var playerAlertFrequency))
+                PlayerAlertFrequency = (AlertFrequencyMode)Convert.ToInt32(playerAlertFrequency);
+            if (configDict.TryGetValue("EnableAlertSound", out var enableAlertSound))
+                EnableAlertSound = Convert.ToBoolean(enableAlertSound);
+            if (configDict.TryGetValue("PlayerProximityAlertSound", out var playerProximityAlertSound))
+                PlayerProximityAlertSound = Convert.ToInt32(playerProximityAlertSound);
+            
+            // In-game overlay settings
+            if (configDict.TryGetValue("EnableInGameDrawing", out var enableInGameDrawing))
+                EnableInGameDrawing = Convert.ToBoolean(enableInGameDrawing);
+            if (configDict.TryGetValue("DrawPlayerCircle", out var drawPlayerCircle))
+                DrawPlayerCircle = Convert.ToBoolean(drawPlayerCircle);
+            if (configDict.TryGetValue("DrawObjectDots", out var drawObjectDots))
+                DrawObjectDots = Convert.ToBoolean(drawObjectDots);
+            if (configDict.TryGetValue("DrawDistanceText", out var drawDistanceText))
+                DrawDistanceText = Convert.ToBoolean(drawDistanceText);
+            if (configDict.TryGetValue("InGameDotSize", out var inGameDotSize))
+                InGameDotSize = Convert.ToSingle(inGameDotSize);
+            if (configDict.TryGetValue("InGameLineThickness", out var inGameLineThickness))
+                InGameLineThickness = Convert.ToSingle(inGameLineThickness);
+            
+            // Colors (simplified - just load as default if missing)
+            if (configDict.TryGetValue("LockRadarWindow", out var lockRadarWindow))
+                LockRadarWindow = Convert.ToBoolean(lockRadarWindow);
+            
+            // Apply configuration changes that require special handling
+            // Note: ApplyRadarVisibility will be called in Initialize() after window creation
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Warning(ex, "Failed to load some radar configuration values, using defaults");
+        }
+    }
+
     public List<TrackedObject> GetTrackedObjects()
     {
         return _objectTracker.GetTrackedObjects();
+    }
+
+    private void SaveConfigurationWithAction()
+    {
+        SaveConfiguration();
     }
 
     public override void DrawConfig()
@@ -452,121 +614,189 @@ public class RadarModule : BaseUtilityModule
         // Basic settings
         if (ImGui.CollapsingHeader("Basic Settings"))
         {
-            var showRadarWindow = ShowRadarWindow;
+            bool showRadarWindow = ShowRadarWindow;
             if (ImGui.Checkbox("Show Radar Window", ref showRadarWindow))
             {
                 ShowRadarWindow = showRadarWindow;
                 ApplyRadarVisibility();
+                SaveConfiguration();
             }
             
-            var detectionRadius = DetectionRadius;
+            float detectionRadius = DetectionRadius;
             if (ImGui.SliderFloat("Detection Radius", ref detectionRadius, 10f, 100f, "%.0f yalms"))
+            {
                 DetectionRadius = detectionRadius;
+                SaveConfiguration();
+            }
             
-            var rotateWithCamera = RotateWithCamera;
+            bool rotateWithCamera = RotateWithCamera;
             if (ImGui.Checkbox("Rotate with Camera", ref rotateWithCamera))
+            {
                 RotateWithCamera = rotateWithCamera;
+                SaveConfiguration();
+            }
             
-            var showRadiusCircles = ShowRadiusCircles;
+            bool showRadiusCircles = ShowRadiusCircles;
             if (ImGui.Checkbox("Show Radius Circles", ref showRadiusCircles))
+            {
                 ShowRadiusCircles = showRadiusCircles;
+                SaveConfiguration();
+            }
             
-            var transparentBackground = TransparentBackground;
+            bool drawPlayerLines = DrawPlayerLines;
+            if (ImGui.Checkbox("Draw Player Lines", ref drawPlayerLines))
+            {
+                DrawPlayerLines = drawPlayerLines;
+                SaveConfiguration();
+            }
+            
+            bool transparentBackground = TransparentBackground;
             if (ImGui.Checkbox("Transparent Background", ref transparentBackground))
+            {
                 TransparentBackground = transparentBackground;
+                SaveConfiguration();
+            }
             
-            var lockRadarWindow = LockRadarWindow;
+            bool lockRadarWindow = LockRadarWindow;
             if (ImGui.Checkbox("Lock Window Position", ref lockRadarWindow))
+            {
                 LockRadarWindow = lockRadarWindow;
+                SaveConfiguration();
+            }
         }
         
         // Object filters
         if (ImGui.CollapsingHeader("Object Filters"))
         {
-            var showPlayers = ShowPlayers;
+            bool showPlayers = ShowPlayers;
             if (ImGui.Checkbox("Show Players", ref showPlayers))
+            {
                 ShowPlayers = showPlayers;
+                SaveConfiguration();
+            }
             
-            var showNPCs = ShowNPCs;
+            bool showNPCs = ShowNPCs;
             if (ImGui.Checkbox("Show NPCs", ref showNPCs))
+            {
                 ShowNPCs = showNPCs;
+                SaveConfiguration();
+            }
             
-            var showTreasure = ShowTreasure;
+            bool showTreasure = ShowTreasure;
             if (ImGui.Checkbox("Show Treasure", ref showTreasure))
+            {
                 ShowTreasure = showTreasure;
+                SaveConfiguration();
+            }
             
-            var showGatheringPoints = ShowGatheringPoints;
+            bool showGatheringPoints = ShowGatheringPoints;
             if (ImGui.Checkbox("Show Gathering Points", ref showGatheringPoints))
+            {
                 ShowGatheringPoints = showGatheringPoints;
+                SaveConfiguration();
+            }
             
-            var showAetherytes = ShowAetherytes;
+            bool showAetherytes = ShowAetherytes;
             if (ImGui.Checkbox("Show Aetherytes", ref showAetherytes))
+            {
                 ShowAetherytes = showAetherytes;
+                SaveConfiguration();
+            }
             
-            var showEventObjects = ShowEventObjects;
+            bool showEventObjects = ShowEventObjects;
             if (ImGui.Checkbox("Show Event Objects", ref showEventObjects))
+            {
                 ShowEventObjects = showEventObjects;
+                SaveConfiguration();
+            }
             
-            var hideUnnamedObjects = HideUnnamedObjects;
+            bool hideUnnamedObjects = HideUnnamedObjects;
             if (ImGui.Checkbox("Hide Unnamed Objects", ref hideUnnamedObjects))
+            {
                 HideUnnamedObjects = hideUnnamedObjects;
+                SaveConfiguration();
+            }
         }
         
         // Tether settings
         if (ImGui.CollapsingHeader("Tether/Line Settings"))
         {
-            var drawPlayerLines = DrawPlayerLines;
-            if (ImGui.Checkbox("Draw Player Lines", ref drawPlayerLines))
-                DrawPlayerLines = drawPlayerLines;
-            
-            var drawNPCTethers = DrawNPCTethers;
+            bool drawNPCTethers = DrawNPCTethers;
             if (ImGui.Checkbox("Draw NPC Tethers", ref drawNPCTethers))
+            {
                 DrawNPCTethers = drawNPCTethers;
+                SaveConfiguration();
+            }
             
-            var drawTreasureTethers = DrawTreasureTethers;
+            bool drawTreasureTethers = DrawTreasureTethers;
             if (ImGui.Checkbox("Draw Treasure Tethers", ref drawTreasureTethers))
+            {
                 DrawTreasureTethers = drawTreasureTethers;
+                SaveConfiguration();
+            }
             
-            var drawGatheringTethers = DrawGatheringTethers;
+            bool drawGatheringTethers = DrawGatheringTethers;
             if (ImGui.Checkbox("Draw Gathering Tethers", ref drawGatheringTethers))
+            {
                 DrawGatheringTethers = drawGatheringTethers;
+                SaveConfiguration();
+            }
             
-            var drawAetheryteTethers = DrawAetheryteTethers;
+            bool drawAetheryteTethers = DrawAetheryteTethers;
             if (ImGui.Checkbox("Draw Aetheryte Tethers", ref drawAetheryteTethers))
+            {
                 DrawAetheryteTethers = drawAetheryteTethers;
+                SaveConfiguration();
+            }
         }
         
         // Alert settings
         if (ImGui.CollapsingHeader("Alert Settings"))
         {
-            var enablePlayerProximityAlert = EnablePlayerProximityAlert;
+            bool enablePlayerProximityAlert = EnablePlayerProximityAlert;
             if (ImGui.Checkbox("Enable Player Proximity Alert", ref enablePlayerProximityAlert))
+            {
                 EnablePlayerProximityAlert = enablePlayerProximityAlert;
+                SaveConfiguration();
+            }
             
             if (EnablePlayerProximityAlert)
             {
-                var alertDistance = PlayerProximityAlertDistance;
+                float alertDistance = PlayerProximityAlertDistance;
                 if (ImGui.SliderFloat("Alert Distance", ref alertDistance, 5f, 50f, "%.0f yalms"))
+                {
                     PlayerProximityAlertDistance = alertDistance;
+                    SaveConfiguration();
+                }
                 
-                var showAlertRing = ShowAlertRing;
+                bool showAlertRing = ShowAlertRing;
                 if (ImGui.Checkbox("Show Alert Ring", ref showAlertRing))
+                {
                     ShowAlertRing = showAlertRing;
+                    SaveConfiguration();
+                }
 
                 float alertCooldown = PlayerProximityAlertCooldown;
                 if (ImGui.SliderFloat("Alert Cooldown (seconds)", ref alertCooldown, 0.1f, 10f, "%.1f"))
+                {
                     PlayerProximityAlertCooldown = alertCooldown;
+                    SaveConfiguration();
+                }
 
                 int alertFrequency = (int)PlayerAlertFrequency;
                 if (ImGui.Combo("Alert Frequency", ref alertFrequency, new[] { "Only Once", "Every Interval", "On Enter/Leave/Reenter" }, 3))
                 {
                     PlayerAlertFrequency = (AlertFrequencyMode)alertFrequency;
                     ClearAlertData(); // Clear alerts when frequency changes
+                    SaveConfiguration();
                 }
 
                 bool enableAlertSound = EnableAlertSound;
                 if (ImGui.Checkbox("Enable Alert Sound", ref enableAlertSound))
+                {
                     EnableAlertSound = enableAlertSound;
+                    SaveConfiguration();
+                }
 
                 if (EnableAlertSound)
                 {
@@ -574,6 +804,7 @@ public class RadarModule : BaseUtilityModule
                     if (ImGui.Combo("Alert Sound", ref alertSound, new[] { "Ping", "Alert", "Notification", "Alarm" }, 4))
                     {
                         PlayerProximityAlertSound = alertSound;
+                        SaveConfiguration();
                     }
                 }
             }
@@ -582,31 +813,49 @@ public class RadarModule : BaseUtilityModule
         // In-game overlay
         if (ImGui.CollapsingHeader("In-Game Overlay"))
         {
-            var enableInGameDrawing = EnableInGameDrawing;
+            bool enableInGameDrawing = EnableInGameDrawing;
             if (ImGui.Checkbox("Enable In-Game Drawing", ref enableInGameDrawing))
+            {
                 EnableInGameDrawing = enableInGameDrawing;
+                SaveConfiguration();
+            }
             
             if (EnableInGameDrawing)
             {
-                var drawPlayerCircle = DrawPlayerCircle;
+                bool drawPlayerCircle = DrawPlayerCircle;
                 if (ImGui.Checkbox("Draw Detection Circle", ref drawPlayerCircle))
+                {
                     DrawPlayerCircle = drawPlayerCircle;
+                    SaveConfiguration();
+                }
                 
-                var drawObjectDots = DrawObjectDots;
+                bool drawObjectDots = DrawObjectDots;
                 if (ImGui.Checkbox("Draw Object Dots", ref drawObjectDots))
+                {
                     DrawObjectDots = drawObjectDots;
+                    SaveConfiguration();
+                }
                 
-                var drawDistanceText = DrawDistanceText;
+                bool drawDistanceText = DrawDistanceText;
                 if (ImGui.Checkbox("Draw Distance Text", ref drawDistanceText))
+                {
                     DrawDistanceText = drawDistanceText;
+                    SaveConfiguration();
+                }
                 
-                var dotSize = InGameDotSize;
+                float dotSize = InGameDotSize;
                 if (ImGui.SliderFloat("Dot Size", ref dotSize, 1f, 10f, "%.1f"))
+                {
                     InGameDotSize = dotSize;
+                    SaveConfiguration();
+                }
                 
-                var lineThickness = InGameLineThickness;
+                float lineThickness = InGameLineThickness;
                 if (ImGui.SliderFloat("Line Thickness", ref lineThickness, 0.5f, 5f, "%.1f"))
+                {
                     InGameLineThickness = lineThickness;
+                    SaveConfiguration();
+                }
             }
         }
     }

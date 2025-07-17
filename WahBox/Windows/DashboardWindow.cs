@@ -293,7 +293,7 @@ public class DashboardWindow : Window, IDisposable
         if (ImGui.Checkbox("##Enable", ref enabled))
         {
             module.IsEnabled = enabled;
-            PluginInstance.Configuration.Save();
+            module.SaveConfiguration();
         }
         ImGui.PopStyleVar();
         

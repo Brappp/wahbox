@@ -26,7 +26,19 @@ public class ModuleManager : IDisposable
         }
 
         _modules.Add(module);
-        Plugin.Log.Information($"Registered module: {module.Name}");
+        
+        // Load existing configuration for this module
+        module.LoadConfiguration();
+        
+        // If this is a new module (not in EnabledModules), add it as enabled by default
+        if (!_plugin.Configuration.EnabledModules.Contains(module.Name))
+        {
+            _plugin.Configuration.EnabledModules.Add(module.Name);
+            module.IsEnabled = true;
+            module.SaveConfiguration();
+        }
+        
+        Plugin.Log.Information($"Registered module: {module.Name} (Enabled: {module.IsEnabled})");
     }
 
     public void Initialize()

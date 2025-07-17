@@ -141,7 +141,7 @@ public class ConfigWindow : Window, IDisposable
                 if (ImGui.Checkbox("##Enable", ref isEnabled))
                 {
                     module.IsEnabled = isEnabled;
-                    Configuration.Save();
+                    module.SaveConfiguration();
                 }
                 
                 ImGui.SameLine();

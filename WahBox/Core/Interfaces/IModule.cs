@@ -56,4 +56,8 @@ public interface IModule
     
     void DrawConfig();
     void DrawStatus();
+    
+    // Configuration methods
+    void SaveConfiguration();
+    void LoadConfiguration();
 } 

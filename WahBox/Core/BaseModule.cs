@@ -1,5 +1,7 @@
 using WahBox.Core.Interfaces;
 using ImGuiNET;
+using System.Collections.Generic;
+using System;
 
 namespace WahBox.Core;
 
@@ -37,6 +39,7 @@ public abstract class BaseModule : IModule
     public virtual void Initialize()
     {
         // Base initialization
+        // Note: LoadConfiguration is called by ModuleManager during registration
     }
 
     public abstract void Update();
@@ -44,6 +47,8 @@ public abstract class BaseModule : IModule
     public virtual void Load()
     {
         // Base load logic
+        // Ensure configuration is loaded when the module is first used
+        LoadConfiguration();
     }
 
     public virtual void Unload()
@@ -58,7 +63,8 @@ public abstract class BaseModule : IModule
 
     public virtual void Dispose()
     {
-        // Cleanup
+        // Save configuration before disposing
+        SaveConfiguration();
     }
 
     public virtual void DrawConfig()
@@ -69,5 +75,66 @@ public abstract class BaseModule : IModule
     public virtual void DrawStatus()
     {
         ImGui.Text($"{Name}: {Status}");
+    }
+
+    // Configuration methods
+    public virtual void SaveConfiguration()
+    {
+        try
+        {
+            // Save module enabled state
+            if (IsEnabled)
+            {
+                Plugin.Configuration.EnabledModules.Add(Name);
+            }
+            else
+            {
+                Plugin.Configuration.EnabledModules.Remove(Name);
+            }
+            
+            // Save module-specific configuration
+            var config = GetConfigurationData();
+            if (config != null)
+            {
+                Plugin.Configuration.ModuleConfigs[Name] = config;
+            }
+            
+            Plugin.Configuration.Save();
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error(ex, $"Failed to save configuration for module {Name}");
+        }
+    }
+
+    public virtual void LoadConfiguration()
+    {
+        try
+        {
+            // Load module enabled state
+            IsEnabled = Plugin.Configuration.EnabledModules.Contains(Name);
+            
+            // Load module-specific configuration
+            if (Plugin.Configuration.ModuleConfigs.TryGetValue(Name, out var config))
+            {
+                SetConfigurationData(config);
+            }
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error(ex, $"Failed to load configuration for module {Name}");
+        }
+    }
+
+    // Virtual methods for modules to override
+    protected virtual Dictionary<string, object>? GetConfigurationData()
+    {
+        // Base implementation returns null - modules should override this
+        return null;
+    }
+
+    protected virtual void SetConfigurationData(object config)
+    {
+        // Base implementation does nothing - modules should override this
     }
 } 
