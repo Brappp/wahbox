@@ -171,7 +171,7 @@ public class MainWindow : Window, IDisposable
         if (currencyWarnings.Any() || pendingTasks > 0)
         {
             ImGui.PushStyleColor(ImGuiCol.ChildBg, warningBgColor);
-            ImGui.BeginChild("QuickAlerts", new Vector2(0, 50), true);
+            ImGui.BeginChild("QuickAlerts", new Vector2(0, 80), true);
             
             // Build alert text in a single string to avoid UI overlap issues
             var alertParts = new List<string>();
@@ -273,11 +273,18 @@ public class MainWindow : Window, IDisposable
         // Icon and name
         if (module.IconId > 0)
         {
-            var icon = Plugin.TextureProvider.GetFromGameIcon(module.IconId).GetWrapOrEmpty();
-            if (icon != null)
+            try
             {
-                ImGui.Image(icon.ImGuiHandle, new Vector2(20, 20));
-                ImGui.SameLine();
+                var icon = Plugin.TextureProvider.GetFromGameIcon(module.IconId).GetWrapOrEmpty();
+                if (icon != null && icon.ImGuiHandle != IntPtr.Zero)
+                {
+                    ImGui.Image(icon.ImGuiHandle, new Vector2(20, 20));
+                    ImGui.SameLine();
+                }
+            }
+            catch
+            {
+                // Skip broken icons gracefully
             }
         }
         
@@ -295,16 +302,15 @@ public class MainWindow : Window, IDisposable
         // Currency specific display
         if (module is ICurrencyModule currencyModule)
         {
+            ImGui.SameLine(300);
+            
             var current = currencyModule.GetCurrentAmount();
             var max = currencyModule.GetMaxAmount();
             var percent = max > 0 ? (float)current / max * 100f : 0f;
             
-            // Move to next line for currency details to avoid overlap
-            ImGui.Indent();
-            
             // Progress bar
-            var progressBarSize = new Vector2(200, 20);
-            var color = percent >= 90 ? new Vector4(0.8f, 0.2f, 0.2f, 1) :
+            var progressBarSize = new Vector2(150, 20);
+            var color = percent >= currencyModule.AlertThreshold ? new Vector4(0.8f, 0.2f, 0.2f, 1) :
                        percent >= 75 ? new Vector4(0.8f, 0.8f, 0.2f, 1) :
                        new Vector4(0.2f, 0.8f, 0.2f, 1);
             
@@ -315,16 +321,9 @@ public class MainWindow : Window, IDisposable
             ImGui.SameLine();
             ImGui.Text($"{percent:F0}%");
             
-            // Warning indicator
-            if (percent >= 90)
-            {
-                ImGui.SameLine();
-                ImGui.TextColored(new Vector4(1, 0.2f, 0.2f, 1), "⚠️");
-            }
-            
-            // Alert threshold settings on same line
+            // Alert threshold settings
             ImGui.SameLine();
-            ImGui.Text("Alert at:");
+            ImGui.Text(" Alert at:");
             ImGui.SameLine();
             ImGui.SetNextItemWidth(50);
             
@@ -339,8 +338,6 @@ public class MainWindow : Window, IDisposable
             }
             ImGui.SameLine();
             ImGui.Text("%");
-            
-            ImGui.Unindent();
         }
         else
         {
