@@ -53,6 +53,9 @@ public sealed class Plugin : IDalamudPlugin
         ECommonsMain.Init(PluginInterface, this, ECommons.Module.All);
         
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        
+        // Debug: Log configuration loading
+        Log.Information($"Configuration loaded. Version: {Configuration.Version}, Enabled modules: {Configuration.EnabledModules.Count}, Module configs: {Configuration.ModuleConfigs.Count}");
 
         // Initialize core systems
         InitializeSystems();

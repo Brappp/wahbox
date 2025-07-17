@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Numerics;
 using Dalamud.Interface;
@@ -259,8 +260,13 @@ public class MainWindow : Window, IDisposable
             {
                 if (alertThreshold >= 0 && alertThreshold <= 100)
                 {
+                    Plugin.Log.Information($"User changed {module.Name} alert threshold from {currencyModule.AlertThreshold} to {alertThreshold}");
                     currencyModule.AlertThreshold = alertThreshold;
                     module.SaveConfiguration();
+                }
+                else
+                {
+                    Plugin.Log.Warning($"User tried to set invalid alert threshold for {module.Name}: {alertThreshold}");
                 }
             }
             ImGui.SameLine();
@@ -270,6 +276,7 @@ public class MainWindow : Window, IDisposable
             ImGui.SameLine();
             if (ImGui.SmallButton($"No Alert##{module.Name}"))
             {
+                Plugin.Log.Information($"User clicked 'No Alert' for {module.Name}, setting threshold from {currencyModule.AlertThreshold} to 0");
                 currencyModule.AlertThreshold = 0;
                 module.SaveConfiguration();
             }
@@ -708,14 +715,67 @@ public class MainWindow : Window, IDisposable
             
             if (ImGui.Button("Export Settings"))
             {
-                // TODO: Implement settings export
+                try
+                {
+                    var json = System.Text.Json.JsonSerializer.Serialize(PluginInstance.Configuration, new System.Text.Json.JsonSerializerOptions 
+                    { 
+                        WriteIndented = true 
+                    });
+                    
+                    // Copy to clipboard
+                    ImGui.SetClipboardText(json);
+                    Plugin.Log.Information("Configuration exported to clipboard");
+                    
+                    // Optional: Save to file
+                    var exportPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "WahBox_Config_Export.json");
+                    File.WriteAllText(exportPath, json);
+                    Plugin.Log.Information($"Configuration exported to: {exportPath}");
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.Error(ex, "Failed to export configuration");
+                }
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Export configuration to clipboard and desktop file");
             }
             
             ImGui.SameLine();
             
             if (ImGui.Button("Import Settings"))
             {
-                // TODO: Implement settings import
+                try
+                {
+                    var clipboardText = ImGui.GetClipboardText();
+                    if (!string.IsNullOrEmpty(clipboardText))
+                    {
+                        var importedConfig = System.Text.Json.JsonSerializer.Deserialize<Configuration>(clipboardText);
+                        if (importedConfig != null)
+                        {
+                            // Copy imported settings (character data is preserved automatically)
+                            PluginInstance.Configuration.EnabledModules = importedConfig.EnabledModules;
+                            PluginInstance.Configuration.ModuleConfigs = importedConfig.ModuleConfigs;
+                            PluginInstance.Configuration.UISettings = importedConfig.UISettings;
+                            PluginInstance.Configuration.NotificationSettings = importedConfig.NotificationSettings;
+                            
+                            PluginInstance.Configuration.Save();
+                            Plugin.Log.Information("Configuration imported from clipboard successfully");
+                        }
+                    }
+                    else
+                    {
+                        Plugin.Log.Warning("Clipboard is empty or contains no text");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Plugin.Log.Error(ex, "Failed to import configuration from clipboard");
+                }
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Import configuration from clipboard (JSON format)");
             }
             
             ImGui.SameLine();
@@ -726,11 +786,38 @@ public class MainWindow : Window, IDisposable
                 {
                     PluginInstance.Configuration.ResetToDefaults();
                     PluginInstance.Configuration.Save();
+                    
+                    // Reload all module configurations
+                    foreach (var module in PluginInstance.ModuleManager.GetModules())
+                    {
+                        module.LoadConfiguration();
+                    }
+                    
+                    Plugin.Log.Information("All modules reloaded with default configuration");
                 }
             }
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetTooltip("Hold Shift and click to reset all settings to defaults");
+            }
+            
+            ImGui.SameLine();
+            
+            if (ImGui.Button("Debug Config"))
+            {
+                Plugin.Log.Information("=== Configuration Debug Info ===");
+                Plugin.Log.Information($"Enabled Modules: {string.Join(", ", PluginInstance.Configuration.EnabledModules)}");
+                Plugin.Log.Information($"Module Configs Count: {PluginInstance.Configuration.ModuleConfigs.Count}");
+                
+                foreach (var kvp in PluginInstance.Configuration.ModuleConfigs)
+                {
+                    Plugin.Log.Information($"Module '{kvp.Key}' config: {System.Text.Json.JsonSerializer.Serialize(kvp.Value)}");
+                }
+                Plugin.Log.Information("=== End Configuration Debug ===");
+            }
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.SetTooltip("Log current configuration to debug output");
             }
             
             ImGui.Unindent();
@@ -923,11 +1010,24 @@ public class MainWindow : Window, IDisposable
     {
         base.OnOpen();
         LoadUIState();
+        
+        // Load window size from config (but not position - let ImGui handle positioning)
+        if (PluginInstance.Configuration.UISettings.MainWindowSize != Vector2.Zero)
+        {
+            Size = PluginInstance.Configuration.UISettings.MainWindowSize;
+        }
     }
 
     public override void OnClose()
     {
         base.OnClose();
         SaveUIState();
+        
+        // Save window size to config (but not position - let ImGui handle positioning)
+        if (Size.HasValue)
+        {
+            PluginInstance.Configuration.UISettings.MainWindowSize = Size.Value;
+            PluginInstance.Configuration.Save();
+        }
     }
 }

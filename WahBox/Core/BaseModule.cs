@@ -113,11 +113,17 @@ public abstract class BaseModule : IModule
         {
             // Load module enabled state
             IsEnabled = Plugin.Configuration.EnabledModules.Contains(Name);
+            Plugin.Log.Debug($"Module {Name} loaded enabled state: {IsEnabled}");
             
             // Load module-specific configuration
             if (Plugin.Configuration.ModuleConfigs.TryGetValue(Name, out var config))
             {
+                Plugin.Log.Debug($"Module {Name} found saved configuration, loading...");
                 SetConfigurationData(config);
+            }
+            else
+            {
+                Plugin.Log.Debug($"Module {Name} no saved configuration found, using defaults");
             }
         }
         catch (Exception ex)

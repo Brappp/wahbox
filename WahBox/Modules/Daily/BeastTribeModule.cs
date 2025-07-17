@@ -184,6 +184,7 @@ public class BeastTribeModule : BaseModule
                     if (ImGui.Checkbox($"{tribe.Name} (Rank {tribe.Rank})##tribe{i}", ref isTracked))
                     {
                         tribe.IsTracked = isTracked;
+                        SaveConfiguration(); // Save when tribe tracking is changed
                     }
                     
                     if (tribe.IsMaxRank)
@@ -215,6 +216,47 @@ public class BeastTribeModule : BaseModule
         else
         {
             ImGui.TextUnformatted($"  All allowances used");
+        }
+    }
+    
+    protected override Dictionary<string, object>? GetConfigurationData()
+    {
+        var trackedTribes = new Dictionary<string, bool>();
+        foreach (var kvp in _tribeProgress)
+        {
+            trackedTribes[kvp.Key.ToString()] = kvp.Value.IsTracked;
+        }
+        
+        return new Dictionary<string, object>
+        {
+            ["TrackedTribes"] = trackedTribes
+        };
+    }
+    
+    protected override void SetConfigurationData(object config)
+    {
+        if (config is Dictionary<string, object> dict)
+        {
+            try
+            {
+                if (dict.TryGetValue("TrackedTribes", out var trackedTribesObj) &&
+                    trackedTribesObj is Dictionary<string, object> trackedTribes)
+                {
+                    foreach (var kvp in trackedTribes)
+                    {
+                        if (uint.TryParse(kvp.Key, out var tribeId) &&
+                            _tribeProgress.TryGetValue(tribeId, out var tribe) &&
+                            kvp.Value is bool isTracked)
+                        {
+                            tribe.IsTracked = isTracked;
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Warning(ex, "Failed to load beast tribe configuration, using defaults");
+            }
         }
     }
 } 

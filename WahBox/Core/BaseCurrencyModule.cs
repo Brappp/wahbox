@@ -12,7 +12,14 @@ namespace WahBox.Core;
 public abstract class BaseCurrencyModule : BaseModule, ICurrencyModule
 {
     protected readonly List<uint> _currencyIds = new();
-    public int AlertThreshold { get; set; } = 90;
+    // Alert threshold for this currency (0 = disabled)
+    public int AlertThreshold 
+    { 
+        get => GetThresholdFromConfig();
+        set => SaveThresholdToConfig(value);
+    }
+    
+    private int _defaultThreshold = 90;
     
     protected BaseCurrencyModule(Plugin plugin) : base(plugin)
     {
@@ -137,10 +144,13 @@ public abstract class BaseCurrencyModule : BaseModule, ICurrencyModule
     
     protected override Dictionary<string, object>? GetConfigurationData()
     {
-        return new Dictionary<string, object>
+        var config = new Dictionary<string, object>
         {
             ["AlertThreshold"] = AlertThreshold
         };
+        
+        Plugin.Log.Debug($"Currency module {Name} saving configuration: AlertThreshold = {AlertThreshold}");
+        return config;
     }
     
     protected override void SetConfigurationData(object config)
@@ -151,13 +161,44 @@ public abstract class BaseCurrencyModule : BaseModule, ICurrencyModule
             {
                 if (dict.TryGetValue("AlertThreshold", out var threshold))
                 {
-                    AlertThreshold = Convert.ToInt32(threshold);
+                    var newThreshold = Convert.ToInt32(threshold);
+                    Plugin.Log.Debug($"Currency module {Name} loading configuration: AlertThreshold = {newThreshold}");
+                    _defaultThreshold = newThreshold;
+                }
+                else
+                {
+                    Plugin.Log.Debug($"Currency module {Name} no AlertThreshold found in config, using default: {_defaultThreshold}");
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                AlertThreshold = 90;
+                Plugin.Log.Warning(ex, $"Currency module {Name} failed to load AlertThreshold, using default: 90");
+                _defaultThreshold = 90;
             }
         }
+        else
+        {
+            Plugin.Log.Debug($"Currency module {Name} invalid config format, using default AlertThreshold: {_defaultThreshold}");
+        }
+    }
+    
+    private int GetThresholdFromConfig()
+    {
+        // Get from direct configuration storage
+        if (Plugin.Configuration.UISettings.CurrencyAlertThresholds.TryGetValue(Name, out var threshold))
+        {
+            return threshold;
+        }
+        
+        return _defaultThreshold;
+    }
+    
+    private void SaveThresholdToConfig(int value)
+    {
+        // Store directly in UISettings for immediate persistence
+        Plugin.Configuration.UISettings.CurrencyAlertThresholds[Name] = value;
+        Plugin.Configuration.Save();
+        
+        Plugin.Log.Information($"Currency module {Name} saved AlertThreshold directly to config: {value}");
     }
 }

@@ -29,7 +29,15 @@ public class Configuration : IPluginConfiguration
     // the below exist just to make saving less cumbersome
     public void Save()
     {
-        Plugin.PluginInterface.SavePluginConfig(this);
+        try
+        {
+            Plugin.PluginInterface.SavePluginConfig(this);
+            Plugin.Log.Debug($"Configuration saved successfully. Enabled modules: {EnabledModules.Count}, Module configs: {ModuleConfigs.Count}");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error(ex, "Failed to save configuration");
+        }
     }
     
     public void ResetToDefaults()
@@ -39,6 +47,8 @@ public class Configuration : IPluginConfiguration
         ModuleConfigs = new();
         UISettings = new();
         NotificationSettings = new();
+        
+        Plugin.Log.Information("Configuration reset to defaults completed");
     }
     
     public void LoadCharacterData(ulong contentId)
@@ -74,6 +84,9 @@ public class UISettings
     
     // Module visibility settings
     public Dictionary<string, bool> VisibleModules { get; set; } = new();
+    
+    // Currency alert thresholds
+    public Dictionary<string, int> CurrencyAlertThresholds { get; set; } = new();
     public bool ShowCurrencyModules { get; set; } = true;
     public bool ShowDailyModules { get; set; } = true;
     public bool ShowWeeklyModules { get; set; } = true;
