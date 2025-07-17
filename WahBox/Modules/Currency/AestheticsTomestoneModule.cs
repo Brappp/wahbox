@@ -17,7 +17,7 @@ public class AestheticsTomestoneModule : BaseModule, ICurrencyModule
 
     public AestheticsTomestoneModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65049; // Tomestone icon
+        IconId = 65083; // Aesthetics tomestone icon
     }
 
     public override void Initialize()

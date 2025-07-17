@@ -7,15 +7,31 @@ public abstract class BaseModule : IModule
 {
     public abstract string Name { get; }
     public abstract ModuleType Type { get; }
+    public virtual ModuleCategory Category => DetermineCategory();
     public virtual ModuleStatus Status { get; protected set; } = ModuleStatus.Unknown;
     public bool IsEnabled { get; set; } = true;
     public virtual uint IconId { get; protected set; } = 0;
+    
+    // Window support
+    public virtual bool HasWindow => false;
+    public virtual void OpenWindow() { }
+    public virtual void CloseWindow() { }
     
     protected readonly Plugin Plugin;
 
     protected BaseModule(Plugin plugin)
     {
         Plugin = plugin;
+    }
+    
+    private ModuleCategory DetermineCategory()
+    {
+        return Type switch
+        {
+            ModuleType.Currency or ModuleType.Daily or ModuleType.Weekly or ModuleType.Special => ModuleCategory.Tracking,
+            ModuleType.Radar or ModuleType.Speedometer => ModuleCategory.Utility,
+            _ => ModuleCategory.Tools
+        };
     }
 
     public virtual void Initialize()

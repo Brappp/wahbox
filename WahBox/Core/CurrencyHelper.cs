@@ -42,11 +42,11 @@ public static unsafe class CurrencyHelper
             // Sack of Nuts
             26533 => GetSackOfNuts(),
             
-            // White Scrips (both crafter and gatherer use same ID)
+            // White Scrips (shared by crafters and gatherers)
             25199 => GetWhiteScrips(),
             
-            // Purple Scrips (both crafter and gatherer use same ID)
-            25200 => GetPurpleScrips(),
+            // Purple Scrips (shared by crafters and gatherers)
+            33913 => GetPurpleScrips(),
             
             // Skybuilders' Scrips
             28063 => GetSkybuildersScrips(),
@@ -128,7 +128,7 @@ public static unsafe class CurrencyHelper
     {
         // Purple scrips are in currency inventory
         var inventoryManager = InventoryManager.Instance();
-        return inventoryManager != null ? inventoryManager->GetInventoryItemCount(25200, false, false, false) : 0;
+        return inventoryManager != null ? inventoryManager->GetInventoryItemCount(33913, false, false, false) : 0;
     }
 
     private static int GetSkybuildersScrips()
@@ -173,7 +173,8 @@ public static unsafe class CurrencyHelper
             48 => 2000,     // Heliometry
             
             // Scrips
-            25199 or 25200 => 4000, // White/Purple Scrips
+            25199 => 4000,  // White Scrips
+            33913 => 4000,  // Purple Scrips
             28063 => 10000, // Skybuilders
             
             // Default - check if it's a tomestone

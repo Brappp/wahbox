@@ -17,7 +17,7 @@ public class HeliometryTomestoneModule : BaseModule, ICurrencyModule
 
     public HeliometryTomestoneModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65049; // Tomestone icon
+        IconId = 65084; // Heliometry tomestone icon
     }
 
     public override void Initialize()

@@ -17,36 +17,24 @@ public class WhiteScripsModule : BaseModule, ICurrencyModule
 
     public WhiteScripsModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65073; // Module icon
+        IconId = 65073; // White scrip icon
     }
 
     public override void Initialize()
     {
         base.Initialize();
         
-        // Initialize White Scrips tracking
+        // Initialize White Scrips tracking - single currency for both crafters and gatherers
         _trackedCurrencies.Add(new TrackedCurrency 
         { 
             Type = CurrencyType.Item,
-            ItemId = 25199,  // White Crafters' Scrip
+            ItemId = 25199,  // White Scrips (shared by crafters and gatherers)
             Threshold = 3500,
             MaxCount = 4000,
             Enabled = true,
             ShowInOverlay = true,
             ChatWarning = true,
-            WarningText = "Currency near cap"
-        });
-        
-        _trackedCurrencies.Add(new TrackedCurrency 
-        { 
-            Type = CurrencyType.Item,
-            ItemId = 25200,  // White Gatherers' Scrip
-            Threshold = 3500,
-            MaxCount = 4000,
-            Enabled = true,
-            ShowInOverlay = true,
-            ChatWarning = true,
-            WarningText = "Currency near cap"
+            WarningText = "Near cap!"
         });
     }
 

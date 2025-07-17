@@ -42,7 +42,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public readonly WindowSystem WindowSystem = new("WahBox");
     private ConfigWindow ConfigWindow { get; init; }
-    private MainWindow MainWindow { get; init; }
+    private DashboardWindow DashboardWindow { get; init; }
 
     public Plugin()
     {
@@ -57,13 +57,11 @@ public sealed class Plugin : IDalamudPlugin
         InitializeSystems();
         
         // Keep the goat image for fun
-        var goatImagePath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "goat.png");
-
         ConfigWindow = new ConfigWindow(this);
-        MainWindow = new MainWindow(this, goatImagePath);
+        DashboardWindow = new DashboardWindow(this);
 
         WindowSystem.AddWindow(ConfigWindow);
-        WindowSystem.AddWindow(MainWindow);
+        WindowSystem.AddWindow(DashboardWindow);
 
         // Register commands
         CommandManager.AddHandler(MainCommand, new CommandInfo(OnMainCommand)
@@ -147,6 +145,10 @@ public sealed class Plugin : IDalamudPlugin
         // Special modules
         ModuleManager.RegisterModule(new Modules.Special.TreasureMapsModule(this));
         ModuleManager.RegisterModule(new Modules.Special.RetainerVenturesModule(this));
+        
+        // Utility modules
+        ModuleManager.RegisterModule(new Modules.Utility.RadarModule(this));
+        ModuleManager.RegisterModule(new Modules.Utility.SpeedometerModule(this));
     }
     
     private void RegisterEventHandlers()
@@ -209,7 +211,7 @@ public sealed class Plugin : IDalamudPlugin
         WindowSystem.RemoveAllWindows();
 
         ConfigWindow.Dispose();
-        MainWindow.Dispose();
+        DashboardWindow.Dispose();
 
         CommandManager.RemoveHandler(MainCommand);
         
@@ -235,5 +237,5 @@ public sealed class Plugin : IDalamudPlugin
     }
 
     public void ToggleConfigUI() => ConfigWindow.Toggle();
-    public void ToggleMainUI() => MainWindow.Toggle();
+    public void ToggleMainUI() => DashboardWindow.Toggle();
 }

@@ -1,0 +1,12 @@
+{
+  "Author": "Your Name",
+  "Name": "Wahdar",
+  "Punchline": "Track objects around you with a radar display",
+  "Description": "Displays nearby objects like monsters, NPCs and players on a radar interface. Use /wahdar to open the radar window.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "radar",
+    "tracker",
+    "utility"
+  ]
+}

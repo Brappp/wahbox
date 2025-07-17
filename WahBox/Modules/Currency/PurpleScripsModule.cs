@@ -24,29 +24,17 @@ public class PurpleScripsModule : BaseModule, ICurrencyModule
     {
         base.Initialize();
         
-        // Initialize Purple Scrips tracking
+        // Initialize Purple Scrips tracking - single currency for both crafters and gatherers
         _trackedCurrencies.Add(new TrackedCurrency 
         { 
             Type = CurrencyType.Item,
-            ItemId = 33913,  // Purple Crafters' Scrip
+            ItemId = 33913,  // Purple Scrips (shared by crafters and gatherers)
             Threshold = 3500,
             MaxCount = 4000,
             Enabled = true,
             ShowInOverlay = true,
             ChatWarning = true,
-            WarningText = "Currency near cap"
-        });
-        
-        _trackedCurrencies.Add(new TrackedCurrency 
-        { 
-            Type = CurrencyType.Item,
-            ItemId = 33914,  // Purple Gatherers' Scrip
-            Threshold = 3500,
-            MaxCount = 4000,
-            Enabled = true,
-            ShowInOverlay = true,
-            ChatWarning = true,
-            WarningText = "Currency near cap"
+            WarningText = "Near cap!"
         });
     }
 

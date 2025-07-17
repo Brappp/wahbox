@@ -8,7 +8,18 @@ public enum ModuleType
     Currency,
     Daily,
     Weekly,
-    Special
+    Special,
+    Radar,
+    Speedometer,
+    Utility
+}
+
+public enum ModuleCategory
+{
+    Tracking,    // Currency, Daily, Weekly tasks
+    Utility,     // Radar, Speedometer, etc.
+    Display,     // Overlays, HUD elements
+    Tools        // Misc tools
 }
 
 public enum ModuleStatus
@@ -17,16 +28,24 @@ public enum ModuleStatus
     Incomplete,
     Complete,
     Unavailable,
-    InProgress
+    InProgress,
+    Active,      // For utility modules that are running
+    Inactive     // For utility modules that are stopped
 }
 
 public interface IModule
 {
     string Name { get; }
     ModuleType Type { get; }
+    ModuleCategory Category { get; }
     ModuleStatus Status { get; }
     bool IsEnabled { get; set; }
     uint IconId { get; }
+    
+    // Add support for modules with their own windows
+    bool HasWindow { get; }
+    void OpenWindow();
+    void CloseWindow();
     
     void Initialize();
     void Update();

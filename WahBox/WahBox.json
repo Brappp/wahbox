@@ -2,8 +2,8 @@
   "Author": "Your Name",
   "Name": "WahBox",
   "InternalName": "WahBox",
-  "Punchline": "Combined tracker for FFXIV currencies and tasks",
-  "Description": "Track currencies, daily tasks, weekly tasks, and more in one convenient plugin. Features customizable alerts, overlay support, and comprehensive activity management.",
+  "Punchline": "All-in-One FFXIV Utility Suite",
+  "Description": "A comprehensive collection of utilities for FFXIV. Track currencies, manage daily/weekly tasks, use the player radar, monitor your speed, and more! WahBox combines multiple quality-of-life features into one convenient plugin.",
   "RepoUrl": "https://github.com/yourusername/WahBox",
   "ApplicableVersion": "any",
   "Tags": [
@@ -14,7 +14,11 @@
     "utility",
     "overlay",
     "tomestones",
-    "duties"
+    "duties",
+    "radar",
+    "speedometer",
+    "all-in-one",
+    "toolkit"
   ],
   "CategoryTags": [
     "utility"
