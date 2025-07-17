@@ -125,29 +125,10 @@ public class MainWindow : Window, IDisposable
 
     private void DrawTrackingTab()
     {
-        // Top buttons bar
-        if (ImGui.Button("Module Management"))
-        {
-            ImGui.OpenPopup("ModuleManagementPopup");
-        }
-        ImGui.SameLine();
+        // Filter bar
         DrawFilterBar();
         
         ImGui.Spacing();
-        
-        // Module Management Popup
-        var moduleManagementOpen = true;
-        if (ImGui.BeginPopupModal("ModuleManagementPopup", ref moduleManagementOpen, ImGuiWindowFlags.AlwaysAutoResize))
-        {
-            DrawModuleManagement();
-            
-            ImGui.Spacing();
-            if (ImGui.Button("Close", new Vector2(120, 0)))
-            {
-                ImGui.CloseCurrentPopup();
-            }
-            ImGui.EndPopup();
-        }
         
         // Main content - scrollable
         ImGui.BeginChild("TrackingContent", new Vector2(0, 0), false);
@@ -285,9 +266,11 @@ public class MainWindow : Window, IDisposable
             var max = currencyModule.GetMaxAmount();
             var percent = max > 0 ? (float)current / max * 100f : 0f;
             
-            // Progress bar
+            // Progress bar with visual threshold coloring (always shows red at 90%+ for visual feedback)
             var progressBarSize = new Vector2(150, 20);
-            var color = percent >= currencyModule.AlertThreshold ? new Vector4(0.8f, 0.2f, 0.2f, 1) :
+            var threshold = currencyModule.AlertThreshold;
+            var visualThreshold = threshold > 0 ? threshold : 90; // Use custom threshold or default to 90% for visual feedback
+            var color = percent >= visualThreshold ? new Vector4(0.8f, 0.2f, 0.2f, 1) :
                        percent >= 75 ? new Vector4(0.8f, 0.8f, 0.2f, 1) :
                        new Vector4(0.2f, 0.8f, 0.2f, 1);
             
@@ -295,23 +278,31 @@ public class MainWindow : Window, IDisposable
             ImGui.ProgressBar(percent / 100f, progressBarSize, $"{current:N0}/{max:N0}");
             ImGui.PopStyleColor();
             
-            // Alert threshold settings
+            // Inline alert threshold settings
             ImGui.SameLine();
-            ImGui.TextUnformatted("Alert at:");
+            ImGui.TextUnformatted("Alert:");
             ImGui.SameLine();
             ImGui.SetNextItemWidth(50);
             
-            var threshold = currencyModule.AlertThreshold;
-            if (ImGui.InputInt($"##{module.Name}_threshold", ref threshold, 0, 0))
+            var alertThreshold = currencyModule.AlertThreshold;
+            if (ImGui.InputInt($"##{module.Name}_threshold", ref alertThreshold, 0, 0))
             {
-                if (threshold >= 0 && threshold <= 100)
+                if (alertThreshold >= 0 && alertThreshold <= 100)
                 {
-                    currencyModule.AlertThreshold = threshold;
+                    currencyModule.AlertThreshold = alertThreshold;
                     module.SaveConfiguration();
                 }
             }
             ImGui.SameLine();
             ImGui.TextUnformatted("%");
+            
+            // No Alert button
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"No Alert##{module.Name}"))
+            {
+                currencyModule.AlertThreshold = 0;
+                module.SaveConfiguration();
+            }
         }
         else
         {
@@ -454,37 +445,24 @@ public class MainWindow : Window, IDisposable
             .Where(m => m.Category == ModuleCategory.Utility)
             .ToList();
 
-        // Utility modules
+        // Utility modules as dropdowns
         ImGui.BeginChild("UtilityModules", new Vector2(0, 0), false);
         
         foreach (var module in utilityModules)
         {
-            DrawUtilityModule(module);
-            ImGui.Spacing();
+            DrawUtilityDropdown(module);
         }
         
         ImGui.EndChild();
     }
 
-    private void DrawUtilityModule(IModule module)
+    private void DrawUtilityDropdown(IModule module)
     {
-        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1.0f);
-        ImGui.BeginChild($"{module.Name}_Frame", new Vector2(0, 200), true);
+        ImGui.PushID(module.Name);
         
-        // Header
-        ImGui.Text(module.Name);
-        ImGui.SameLine();
-        
-        var statusColor = module.Status == ModuleStatus.Active ? 
-            new Vector4(0.2f, 0.8f, 0.2f, 1) : 
-            new Vector4(0.5f, 0.5f, 0.5f, 1);
-        ImGui.TextColored(statusColor, $"● {module.Status}");
-        
-        ImGui.Separator();
-        
-        // Enable/Disable and action buttons
+        // Enable checkbox on the left
         var enabled = module.IsEnabled;
-        if (ImGui.Checkbox("Enable", ref enabled))
+        if (ImGui.Checkbox("", ref enabled))
         {
             module.IsEnabled = enabled;
             
@@ -493,60 +471,39 @@ public class MainWindow : Window, IDisposable
             {
                 module.CloseWindow();
             }
+            // If enabling and the module has a window, open it
+            else if (enabled && module.HasWindow)
+            {
+                module.OpenWindow();
+            }
             
             module.SaveConfiguration();
         }
         
         ImGui.SameLine();
         
-        if (module.HasWindow)
-        {
-            if (ImGui.Button("Open Window"))
-            {
-                if (module.Status == ModuleStatus.Active)
-                    module.CloseWindow();
-                else
-                    module.OpenWindow();
-            }
-        }
+        // Status indicator
+        var statusColor = module.Status == ModuleStatus.Active ? 
+            new Vector4(0.2f, 0.8f, 0.2f, 1) : 
+            new Vector4(0.5f, 0.5f, 0.5f, 1);
+        var statusIcon = module.Status == ModuleStatus.Active ? "●" : "○";
         
+        ImGui.TextColored(statusColor, statusIcon);
         ImGui.SameLine();
         
-        if (ImGui.Button("Configure Details"))
+        // Collapsible tree node with module name
+        if (ImGui.TreeNode($"{module.Name}"))
         {
-            ImGui.OpenPopup($"{module.Name}_DetailedConfig");
-        }
-        
-        // Quick settings area
-        ImGui.Spacing();
-        ImGui.Text("Quick Settings:");
-        ImGui.Separator();
-        
-        // Module draws its own config
-        ImGui.BeginChild($"{module.Name}_QuickSettings", new Vector2(0, 100), false);
-        module.DrawConfig();
-        ImGui.EndChild();
-        
-        // Detailed config popup
-        if (ImGui.BeginPopupModal($"{module.Name}_DetailedConfig", ref enabled, ImGuiWindowFlags.AlwaysAutoResize))
-        {
-            ImGui.Text($"{module.Name} Detailed Configuration");
-            ImGui.Separator();
+            ImGui.Indent();
             
-            ImGui.BeginChild("DetailedConfigContent", new Vector2(500, 400), false);
+            // Settings area - all configuration directly here
             module.DrawConfig();
-            ImGui.EndChild();
             
-            if (ImGui.Button("Close", new Vector2(120, 0)))
-            {
-                ImGui.CloseCurrentPopup();
-            }
-            
-            ImGui.EndPopup();
+            ImGui.Unindent();
+            ImGui.TreePop();
         }
         
-        ImGui.EndChild();
-        ImGui.PopStyleVar();
+        ImGui.PopID();
     }
 
     private void DrawSettingsTab()
@@ -720,15 +677,7 @@ public class MainWindow : Window, IDisposable
             ImGui.Unindent();
         }
         
-        ImGui.Spacing();
-        
-        // Module Management
-        if (ImGui.CollapsingHeader("Module Management"))
-        {
-            ImGui.Indent();
-            ImGui.TextWrapped("Module management has been moved to the Tracking tab for easier access. Click the 'Module Management' button in the Tracking tab to configure which modules are enabled and visible.");
-            ImGui.Unindent();
-        }
+
         
         ImGui.Spacing();
         
@@ -855,172 +804,7 @@ public class MainWindow : Window, IDisposable
         };
     }
 
-    private void DrawModuleManagement()
-    {
-        ImGui.Text("Module Management");
-        ImGui.Separator();
-        
-        // Window size for the popup
-        ImGui.SetNextWindowSize(new Vector2(700, 500), ImGuiCond.FirstUseEver);
-        
-        // Two-column layout
-        if (ImGui.BeginChild("ModuleManagementLeft", new Vector2(200, 400), true))
-        {
-            // Category toggles
-            ImGui.Text("Categories:");
-            ImGui.Separator();
-            
-            var showCurrency = PluginInstance.Configuration.UISettings.ShowCurrencyModules;
-            if (ImGui.Checkbox("Currency Tracking", ref showCurrency))
-            {
-                PluginInstance.Configuration.UISettings.ShowCurrencyModules = showCurrency;
-                PluginInstance.Configuration.Save();
-            }
-            
-            var showDaily = PluginInstance.Configuration.UISettings.ShowDailyModules;
-            if (ImGui.Checkbox("Daily Tasks", ref showDaily))
-            {
-                PluginInstance.Configuration.UISettings.ShowDailyModules = showDaily;
-                PluginInstance.Configuration.Save();
-            }
-            
-            var showWeekly = PluginInstance.Configuration.UISettings.ShowWeeklyModules;
-            if (ImGui.Checkbox("Weekly Tasks", ref showWeekly))
-            {
-                PluginInstance.Configuration.UISettings.ShowWeeklyModules = showWeekly;
-                PluginInstance.Configuration.Save();
-            }
-            
-            var showSpecial = PluginInstance.Configuration.UISettings.ShowSpecialModules;
-            if (ImGui.Checkbox("Special Tasks", ref showSpecial))
-            {
-                PluginInstance.Configuration.UISettings.ShowSpecialModules = showSpecial;
-                PluginInstance.Configuration.Save();
-            }
-            
-            ImGui.Spacing();
-            ImGui.Separator();
-            ImGui.Spacing();
-            
-            // Quick actions
-            ImGui.Text("Quick Actions:");
-            if (ImGui.Button("Enable All", new Vector2(-1, 0)))
-            {
-                foreach (var module in PluginInstance.ModuleManager.GetModules())
-                {
-                    SetModuleVisibility(module.Name, true);
-                    module.IsEnabled = true;
-                    module.SaveConfiguration();
-                }
-            }
-            
-            if (ImGui.Button("Disable All", new Vector2(-1, 0)))
-            {
-                foreach (var module in PluginInstance.ModuleManager.GetModules())
-                {
-                    module.IsEnabled = false;
-                    module.SaveConfiguration();
-                }
-            }
-            
-            if (ImGui.Button("Reset to Defaults", new Vector2(-1, 0)))
-            {
-                // Reset visibility to all visible
-                foreach (var module in PluginInstance.ModuleManager.GetModules())
-                {
-                    SetModuleVisibility(module.Name, true);
-                }
-                // Reset category visibility
-                PluginInstance.Configuration.UISettings.ShowCurrencyModules = true;
-                PluginInstance.Configuration.UISettings.ShowDailyModules = true;
-                PluginInstance.Configuration.UISettings.ShowWeeklyModules = true;
-                PluginInstance.Configuration.UISettings.ShowSpecialModules = true;
-                PluginInstance.Configuration.Save();
-            }
-        }
-        ImGui.EndChild();
-        
-        ImGui.SameLine();
-        
-        // Individual module settings
-        if (ImGui.BeginChild("ModuleManagementRight", new Vector2(0, 400), true))
-        {
-            ImGui.Text("Individual Modules:");
-            ImGui.Separator();
-            
-            var allModules = PluginInstance.ModuleManager.GetModules()
-                .GroupBy(m => m.Type)
-                .OrderBy(g => g.Key);
-            
-            foreach (var typeGroup in allModules)
-            {
-                var typeVisible = typeGroup.Key switch
-                {
-                    ModuleType.Currency => PluginInstance.Configuration.UISettings.ShowCurrencyModules,
-                    ModuleType.Daily => PluginInstance.Configuration.UISettings.ShowDailyModules,
-                    ModuleType.Weekly => PluginInstance.Configuration.UISettings.ShowWeeklyModules,
-                    ModuleType.Special => PluginInstance.Configuration.UISettings.ShowSpecialModules,
-                    _ => true
-                };
-                
-                if (!typeVisible) continue;
-                
-                if (ImGui.TreeNode($"{typeGroup.Key} ({typeGroup.Count()} modules)"))
-                {
-                    foreach (var module in typeGroup.OrderBy(m => m.Name))
-                    {
-                        ImGui.PushID(module.Name);
-                        
-                        // Enabled/Visible checkboxes
-                        var isEnabled = module.IsEnabled;
-                        if (ImGui.Checkbox("Enabled", ref isEnabled))
-                        {
-                            module.IsEnabled = isEnabled;
-                            module.SaveConfiguration();
-                        }
-                        
-                        ImGui.SameLine();
-                        var isVisible = GetModuleVisibility(module.Name);
-                        if (ImGui.Checkbox("Visible", ref isVisible))
-                        {
-                            SetModuleVisibility(module.Name, isVisible);
-                        }
-                        
-                        ImGui.SameLine();
-                        ImGui.Text(module.Name);
-                        
-                        // Status and settings button
-                        ImGui.SameLine(ImGui.GetContentRegionAvail().X - 80);
-                        var statusColor = module.Status == ModuleStatus.Complete ? new Vector4(0.2f, 0.8f, 0.2f, 1) :
-                                         module.Status == ModuleStatus.InProgress ? new Vector4(0.8f, 0.8f, 0.2f, 1) :
-                                         new Vector4(0.8f, 0.2f, 0.2f, 1);
-                        ImGui.TextColored(statusColor, GetStatusIcon(module.Status));
-                        
-                        ImGui.SameLine();
-                        if (ImGuiComponents.IconButton($"##{module.Name}_settings", FontAwesomeIcon.Cog))
-                        {
-                            ImGui.OpenPopup($"{module.Name}_SettingsPopup");
-                        }
-                        
-                        // Settings popup for individual module
-                        if (ImGui.BeginPopup($"{module.Name}_SettingsPopup"))
-                        {
-                            ImGui.Text($"{module.Name} Settings");
-                            ImGui.Separator();
-                            ImGui.BeginChild($"{module.Name}_ConfigChild", new Vector2(300, 200), false);
-                            module.DrawConfig();
-                            ImGui.EndChild();
-                            ImGui.EndPopup();
-                        }
-                        
-                        ImGui.PopID();
-                    }
-                    ImGui.TreePop();
-                }
-            }
-        }
-        ImGui.EndChild();
-    }
+
     
     private void DrawModuleVisibilityToggles()
     {
