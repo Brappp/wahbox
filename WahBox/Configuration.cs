@@ -71,6 +71,13 @@ public class UISettings
     public Vector2 MainWindowSize { get; set; } = new(800, 600);
     public Vector2 MainWindowPosition { get; set; } = new(100, 100);
     public Dictionary<string, bool> ExpandedSections { get; set; } = new();
+    
+    // Module visibility settings
+    public Dictionary<string, bool> VisibleModules { get; set; } = new();
+    public bool ShowCurrencyModules { get; set; } = true;
+    public bool ShowDailyModules { get; set; } = true;
+    public bool ShowWeeklyModules { get; set; } = true;
+    public bool ShowSpecialModules { get; set; } = true;
 }
 
 public class NotificationSettings
