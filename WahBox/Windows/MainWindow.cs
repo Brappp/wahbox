@@ -173,21 +173,30 @@ public class MainWindow : Window, IDisposable
             ImGui.PushStyleColor(ImGuiCol.ChildBg, warningBgColor);
             ImGui.BeginChild("QuickAlerts", new Vector2(0, 50), true);
             
+            // Build alert text in a single string to avoid UI overlap issues
+            var alertParts = new List<string>();
+            
             if (currencyWarnings.Any())
             {
-                ImGui.Text($"⚠️ Near Cap: {string.Join(" | ", currencyWarnings)}");
+                alertParts.Add($"⚠️ Near Cap: {string.Join(" | ", currencyWarnings)}");
             }
             
             if (pendingTasks > 0)
             {
-                if (currencyWarnings.Any()) ImGui.SameLine();
-                ImGui.Text($"📋 {pendingTasks} tasks pending");
+                alertParts.Add($"📋 {pendingTasks} tasks pending");
             }
             
-            // Reset timers
+            // Display alerts on one line if they fit, otherwise split
+            if (alertParts.Any())
+            {
+                var alertText = string.Join(" | ", alertParts);
+                ImGui.TextWrapped(alertText);
+            }
+            
+            // Reset timers on separate line
             var dailyReset = GetTimeUntilDailyReset();
             var weeklyReset = GetTimeUntilWeeklyReset();
-            ImGui.Text($"⏰ Resets: Daily in {FormatTimeSpan(dailyReset)} | Weekly in {FormatTimeSpan(weeklyReset)}");
+            ImGui.TextWrapped($"⏰ Resets: Daily in {FormatTimeSpan(dailyReset)} | Weekly in {FormatTimeSpan(weeklyReset)}");
             
             ImGui.EndChild();
             ImGui.PopStyleColor();
@@ -286,16 +295,15 @@ public class MainWindow : Window, IDisposable
         // Currency specific display
         if (module is ICurrencyModule currencyModule)
         {
-            ImGui.SameLine(300);
-            
             var current = currencyModule.GetCurrentAmount();
             var max = currencyModule.GetMaxAmount();
             var percent = max > 0 ? (float)current / max * 100f : 0f;
             
-            // Progress bar
-            var progressBarSize = new Vector2(150, 20);
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX());
+            // Move to next line for currency details to avoid overlap
+            ImGui.Indent();
             
+            // Progress bar
+            var progressBarSize = new Vector2(200, 20);
             var color = percent >= 90 ? new Vector4(0.8f, 0.2f, 0.2f, 1) :
                        percent >= 75 ? new Vector4(0.8f, 0.8f, 0.2f, 1) :
                        new Vector4(0.2f, 0.8f, 0.2f, 1);
@@ -314,8 +322,8 @@ public class MainWindow : Window, IDisposable
                 ImGui.TextColored(new Vector4(1, 0.2f, 0.2f, 1), "⚠️");
             }
             
-            // Inline settings
-            ImGui.SameLine(ImGui.GetContentRegionMax().X - 100);
+            // Alert threshold settings on same line
+            ImGui.SameLine();
             ImGui.Text("Alert at:");
             ImGui.SameLine();
             ImGui.SetNextItemWidth(50);
@@ -331,6 +339,8 @@ public class MainWindow : Window, IDisposable
             }
             ImGui.SameLine();
             ImGui.Text("%");
+            
+            ImGui.Unindent();
         }
         else
         {
