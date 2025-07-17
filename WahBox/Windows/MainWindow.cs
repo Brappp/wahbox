@@ -24,6 +24,7 @@ public class MainWindow : Window, IDisposable
     {
         Tracking,
         Utilities,
+        Inventory,
         Settings
     }
 
@@ -64,6 +65,12 @@ public class MainWindow : Window, IDisposable
                 ImGui.EndTabItem();
             }
             
+            if (ImGui.BeginTabItem("Inventory"))
+            {
+                _currentTab = Tab.Inventory;
+                ImGui.EndTabItem();
+            }
+            
             if (ImGui.BeginTabItem("Settings"))
             {
                 _currentTab = Tab.Settings;
@@ -83,6 +90,9 @@ public class MainWindow : Window, IDisposable
                 break;
             case Tab.Utilities:
                 DrawUtilitiesTab();
+                break;
+            case Tab.Inventory:
+                DrawInventoryTab();
                 break;
             case Tab.Settings:
                 DrawSettingsTab();
@@ -986,6 +996,37 @@ public class MainWindow : Window, IDisposable
             return $"{(int)time.TotalDays}d {time.Hours}h {time.Minutes}m";
         else
             return $"{time.Hours}h {time.Minutes}m";
+    }
+
+    private void DrawInventoryTab()
+    {
+        // Get the inventory module
+        var inventoryModule = PluginInstance.ModuleManager.GetModules()
+            .FirstOrDefault(m => m.Name == "Inventory Manager");
+
+        if (inventoryModule == null)
+        {
+            ImGui.Text("Inventory module not loaded.");
+            return;
+        }
+
+        // If the module has a window, we'll embed its content here
+        if (inventoryModule is IDrawable drawable)
+        {
+            drawable.Draw();
+        }
+        else if (inventoryModule.HasWindow)
+        {
+            // Open module window button
+            if (ImGui.Button("Open Inventory Manager"))
+            {
+                inventoryModule.OpenWindow();
+            }
+        }
+        else
+        {
+            ImGui.Text("Inventory module does not have a drawable interface.");
+        }
     }
 
     private void SaveUIState()

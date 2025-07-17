@@ -23,6 +23,9 @@ public class Configuration : IPluginConfiguration
     // Notification settings
     public NotificationSettings NotificationSettings { get; set; } = new();
     
+    // Inventory settings
+    public InventorySettings InventorySettings { get; set; } = new();
+    
     // Character-specific data management
     private Dictionary<ulong, CharacterData> _characterData = new();
 
@@ -126,4 +129,21 @@ public class ModuleData
 {
     public DateTime LastReset { get; set; }
     public Dictionary<string, object> CustomData { get; set; } = new();
+}
+
+public class InventorySettings
+{
+    // Market price settings
+    public bool ShowMarketPrices { get; set; } = true;
+    public bool AutoRefreshPrices { get; set; } = false;
+    public int PriceCacheDurationMinutes { get; set; } = 30;
+    
+    // Discard settings
+    public HashSet<uint> BlacklistedItems { get; set; } = new() { 2820 }; // Infusion by default
+    public bool RequireConfirmation { get; set; } = true;
+    public bool SafeMode { get; set; } = true; // Prevents discarding HQ, spiritbonded, etc.
+    
+    // UI settings
+    public Dictionary<uint, bool> ExpandedCategories { get; set; } = new();
+    public string LastSearchFilter { get; set; } = string.Empty;
 }

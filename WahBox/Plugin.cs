@@ -159,6 +159,9 @@ public sealed class Plugin : IDalamudPlugin
         // Utility modules
         ModuleManager.RegisterModule(new Modules.Utility.RadarModule(this));
         ModuleManager.RegisterModule(new Modules.Utility.SpeedometerModule(this));
+        
+        // Inventory module
+        ModuleManager.RegisterModule(new Modules.Inventory.InventoryManagementModule(this));
     }
     
     private void RegisterEventHandlers()
