@@ -15,7 +15,7 @@ namespace WahBox.Windows;
 public class MainWindow : Window, IDisposable
 {
     private Plugin PluginInstance;
-    private string _searchFilter = string.Empty;
+
     private Tab _currentTab = Tab.Tracking;
     private readonly Dictionary<string, bool> _expandedSections = new();
     
@@ -26,7 +26,7 @@ public class MainWindow : Window, IDisposable
         Settings
     }
 
-    public MainWindow(Plugin plugin) : base("WahBox##MainWindow")
+    public MainWindow(Plugin plugin) : base("WahBox")
     {
         PluginInstance = plugin;
         
@@ -48,27 +48,22 @@ public class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
-        // Header
-        DrawHeader();
-        
-        ImGui.Separator();
-        
         // Tab bar
         if (ImGui.BeginTabBar("MainTabs"))
         {
-            if (ImGui.BeginTabItem($"{FontAwesomeIcon.ChartLine.ToIconString()} Tracking"))
+            if (ImGui.BeginTabItem("Tracking"))
             {
                 _currentTab = Tab.Tracking;
                 ImGui.EndTabItem();
             }
             
-            if (ImGui.BeginTabItem($"{FontAwesomeIcon.Tools.ToIconString()} Utilities"))
+            if (ImGui.BeginTabItem("Utilities"))
             {
                 _currentTab = Tab.Utilities;
                 ImGui.EndTabItem();
             }
             
-            if (ImGui.BeginTabItem($"{FontAwesomeIcon.Cog.ToIconString()} Settings"))
+            if (ImGui.BeginTabItem("Settings"))
             {
                 _currentTab = Tab.Settings;
                 ImGui.EndTabItem();
@@ -96,32 +91,7 @@ public class MainWindow : Window, IDisposable
         ImGui.EndChild();
     }
 
-    private void DrawHeader()
-    {
-        // Logo and title
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.Text(FontAwesomeIcon.Toolbox.ToIconString());
-        ImGui.PopFont();
-        ImGui.SameLine();
-        
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.7f, 0.2f, 1));
-        ImGui.Text("WahBox");
-        ImGui.PopStyleColor();
-        
-        // Search box on the right
-        ImGui.SameLine(ImGui.GetContentRegionMax().X - 250);
-        ImGui.SetNextItemWidth(200);
-        ImGui.InputTextWithHint("##Search", "Search...", ref _searchFilter, 100);
-        
-        // Settings button
-        ImGui.SameLine();
-        if (ImGuiComponents.IconButton(FontAwesomeIcon.Cog))
-        {
-            _currentTab = Tab.Settings;
-        }
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Settings");
-    }
+
 
     private void DrawTrackingTab()
     {
@@ -536,8 +506,46 @@ public class MainWindow : Window, IDisposable
         
         ImGui.Spacing();
         
+        // Module Visibility
+        if (ImGui.CollapsingHeader("Module Visibility", ImGuiTreeNodeFlags.DefaultOpen))
+        {
+            ImGui.Indent();
+            
+            var showCurrency = PluginInstance.Configuration.UISettings.ShowCurrencyModules;
+            if (ImGui.Checkbox("Show Currency Modules", ref showCurrency))
+            {
+                PluginInstance.Configuration.UISettings.ShowCurrencyModules = showCurrency;
+                PluginInstance.Configuration.Save();
+            }
+            
+            var showDaily = PluginInstance.Configuration.UISettings.ShowDailyModules;
+            if (ImGui.Checkbox("Show Daily Modules", ref showDaily))
+            {
+                PluginInstance.Configuration.UISettings.ShowDailyModules = showDaily;
+                PluginInstance.Configuration.Save();
+            }
+            
+            var showWeekly = PluginInstance.Configuration.UISettings.ShowWeeklyModules;
+            if (ImGui.Checkbox("Show Weekly Modules", ref showWeekly))
+            {
+                PluginInstance.Configuration.UISettings.ShowWeeklyModules = showWeekly;
+                PluginInstance.Configuration.Save();
+            }
+            
+            var showSpecial = PluginInstance.Configuration.UISettings.ShowSpecialModules;
+            if (ImGui.Checkbox("Show Special Modules", ref showSpecial))
+            {
+                PluginInstance.Configuration.UISettings.ShowSpecialModules = showSpecial;
+                PluginInstance.Configuration.Save();
+            }
+            
+            ImGui.Unindent();
+        }
+        
+        ImGui.Spacing();
+        
         // Notifications
-        if (ImGui.CollapsingHeader("Notifications", ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("Tracking Notifications", ImGuiTreeNodeFlags.DefaultOpen))
         {
             ImGui.Indent();
             
@@ -755,13 +763,6 @@ public class MainWindow : Window, IDisposable
 
     private bool PassesFilter(IModule module)
     {
-        // Search filter
-        if (!string.IsNullOrEmpty(_searchFilter))
-        {
-            if (!module.Name.Contains(_searchFilter, StringComparison.OrdinalIgnoreCase))
-                return false;
-        }
-        
         // Hide disabled
         if (!PluginInstance.Configuration.UISettings.ShowDisabledModules && !module.IsEnabled)
             return false;
