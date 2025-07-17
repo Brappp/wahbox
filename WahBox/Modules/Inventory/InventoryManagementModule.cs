@@ -24,12 +24,13 @@ public class InventoryManagementModule : BaseModule, IDrawable
 {
     public override string Name => "Inventory Manager";
     public override ModuleType Type => ModuleType.Special;
-    public override ModuleCategory Category => ModuleCategory.Other;
+    public override ModuleCategory Category => ModuleCategory.Tools;
     public override bool HasWindow => false; // We'll draw directly in the main window
     
     private readonly InventoryHelpers _inventoryHelpers;
-    private readonly UniversalisClient _universalisClient;
+    private UniversalisClient _universalisClient;
     private readonly TaskManager _taskManager;
+    private bool _initialized = false;
     
     // UI State
     private List<CategoryGroup> _categories = new();
@@ -53,20 +54,24 @@ public class InventoryManagementModule : BaseModule, IDrawable
     {
         _inventoryHelpers = new InventoryHelpers(Plugin.DataManager, Plugin.Log);
         
-        var worldName = Plugin.ClientState.LocalPlayer?.CurrentWorld?.Value?.Name.ExtractText() ?? "Aether";
-        _universalisClient = new UniversalisClient(Plugin.Log, worldName);
+        // Initialize with default world name, will be recreated in Initialize()
+        _universalisClient = new UniversalisClient(Plugin.Log, "Aether");
         _taskManager = new TaskManager();
     }
     
     public override void Initialize()
     {
         base.Initialize();
-        RefreshInventory();
+        // Don't access ClientState here - defer to first use
     }
     
     public override void Update()
     {
-        base.Update();
+        // Lazy initialization when we're sure to be on main thread
+        if (!_initialized)
+        {
+            InitializeOnMainThread();
+        }
         
         // Auto-refresh prices if enabled
         if (Settings.AutoRefreshPrices && !_isDiscarding)
@@ -87,6 +92,11 @@ public class InventoryManagementModule : BaseModule, IDrawable
     
     public void Draw()
     {
+        // Ensure initialization before drawing
+        if (!_initialized)
+        {
+            InitializeOnMainThread();
+        }
         if (_isDiscarding)
         {
             DrawDiscardConfirmation();
@@ -431,6 +441,26 @@ public class InventoryManagementModule : BaseModule, IDrawable
         ImGui.End();
     }
     
+    private void InitializeOnMainThread()
+    {
+        if (_initialized) return;
+        
+        try
+        {
+            // Now we can safely access ClientState
+            var worldName = Plugin.ClientState.LocalPlayer?.CurrentWorld.Value.Name.ExtractText() ?? "Aether";
+            _universalisClient.Dispose();
+            _universalisClient = new UniversalisClient(Plugin.Log, worldName);
+            
+            RefreshInventory();
+            _initialized = true;
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error(ex, "Failed to initialize InventoryManagementModule on main thread");
+        }
+    }
+    
     private void RefreshInventory()
     {
         _allItems = _inventoryHelpers.GetAllItems();
@@ -594,7 +624,7 @@ public class InventoryManagementModule : BaseModule, IDrawable
                 var textNode = addon->UldManager.NodeList[15]->GetAsAtkTextNode();
                 if (textNode != null)
                 {
-                    var text = SeString.Parse(textNode->NodeText.ToString()).TextValue;
+                    var text = Dalamud.Memory.MemoryHelper.ReadSeString(&textNode->NodeText).TextValue;
                     if (text.Contains("Discard", StringComparison.OrdinalIgnoreCase))
                     {
                         return addon;

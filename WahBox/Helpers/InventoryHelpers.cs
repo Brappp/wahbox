@@ -27,7 +27,7 @@ public unsafe class InventoryHelpers
         InventoryType.ArmoryBody,
         InventoryType.ArmoryHands,
         InventoryType.ArmoryLegs,
-        InventoryType.ArmoryFeet,
+        InventoryType.ArmoryFeets,
         InventoryType.ArmoryEar,
         InventoryType.ArmoryNeck,
         InventoryType.ArmoryWrist,
@@ -86,9 +86,9 @@ public unsafe class InventoryHelpers
                     Slot = (short)slot,
                     IsHQ = item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality),
                     IconId = itemData.Value.Icon,
-                    CanBeDiscarded = !itemData.Value.Unknown22, // This might need adjustment
+                    CanBeDiscarded = itemData.Value.IsUntradable == false, // Using IsUntradable as approximation
                     IsCollectable = item->Flags.HasFlag(InventoryItem.ItemFlags.Collectable),
-                    SpiritBond = item->Spiritbond,
+                    SpiritBond = 0, // Spiritbond property not available in current ClientStructs
                     ItemUICategory = itemData.Value.ItemUICategory.RowId,
                     CategoryName = GetCategoryName(itemData.Value.ItemUICategory.RowId)
                 };
@@ -107,7 +107,7 @@ public unsafe class InventoryHelpers
         return items;
     }
     
-    public void DiscardItem(InventoryItemInfo item)
+    public unsafe void DiscardItem(InventoryItemInfo item)
     {
         var inventoryManager = InventoryManager.Instance();
         if (inventoryManager == null) return;
@@ -118,7 +118,8 @@ public unsafe class InventoryHelpers
         var slot = inventory->GetInventorySlot(item.Slot);
         if (slot == null || slot->ItemId != item.ItemId) return;
         
-        inventoryManager->MoveItemSlot(item.Container, (uint)item.Slot, InventoryType.Invalid, 0, 0);
+        // Use AgentInventoryContext to discard the item
+        FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentInventoryContext.Instance()->DiscardItem(slot, item.Container, item.Slot, 0);
     }
     
     private string GetCategoryName(uint categoryId)
