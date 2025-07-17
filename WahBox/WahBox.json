@@ -1,16 +1,16 @@
 {
-  "Author": "wah",
+  "Author": "Your Name",
   "Name": "WahBox",
   "InternalName": "WahBox",
   "Punchline": "A whole lot of wah",
-  "Description": "A colelction of crap",
-  "RepoUrl": "https://github.com/yourusername/WahBox",
+  "Description": "A collection of crap",
+  "IconUrl": "https://raw.githubusercontent.com/Brappp/wahbox/master/Data/wah.png",
+  "RepoUrl": "https://github.com/Brappp/wahbox",
   "ApplicableVersion": "any",
   "Tags": [
-    "wah",
-
+    "wah"
   ],
   "CategoryTags": [
-    "utility"
+    "wah"
   ]
 }
