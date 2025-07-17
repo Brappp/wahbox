@@ -68,7 +68,7 @@ public class NotificationManager : IDisposable
                 }
             };
             
-            Plugin.PluginInterface.UiBuilder.AddNotification(notification);
+            Plugin.DalamudNotificationManager.AddNotification(notification);
         }
         
         // Sound notification

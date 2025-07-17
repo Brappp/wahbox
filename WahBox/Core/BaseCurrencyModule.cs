@@ -106,8 +106,10 @@ public abstract class BaseCurrencyModule : BaseModule, ICurrencyModule
         ImGui.Separator();
         
         ImGui.SetNextItemWidth(200);
-        if (ImGui.SliderInt("Alert Threshold %", ref AlertThreshold, 0, 100))
+        int alertThreshold = AlertThreshold;
+        if (ImGui.SliderInt("Alert Threshold %", ref alertThreshold, 0, 100))
         {
+            AlertThreshold = alertThreshold;
             SaveConfiguration();
         }
         ImGui.SameLine();
