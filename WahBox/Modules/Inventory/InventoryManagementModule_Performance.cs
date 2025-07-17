@@ -4,6 +4,7 @@ using System;
 using System.Numerics;
 using Dalamud.Interface.Utility;
 using ImGuiNET;
+using WahBox.Helpers;
 using WahBox.Models;
 
 namespace WahBox.Modules.Inventory;
@@ -35,21 +36,14 @@ public partial class InventoryManagementModule
         // Item name with icon
         ImGui.TableNextColumn();
         
-        // Skip icon drawing if too many items visible (performance)
-        if (category.Items.Count < 50 && item.IconId > 0)
+        // Always show icons using cached textures
+        if (item.IconId > 0)
         {
-            try
+            var icon = _iconCache.GetIcon(item.IconId);
+            if (icon != null)
             {
-                var icon = Plugin.TextureProvider.GetFromGameIcon(item.IconId).GetWrapOrEmpty();
-                if (icon != null && icon.ImGuiHandle != IntPtr.Zero)
-                {
-                    ImGui.Image(icon.ImGuiHandle, new Vector2(20, 20));
-                    ImGui.SameLine();
-                }
-            }
-            catch
-            {
-                // Skip broken icons
+                ImGui.Image(icon.ImGuiHandle, new Vector2(20, 20));
+                ImGui.SameLine();
             }
         }
         
@@ -68,7 +62,7 @@ public partial class InventoryManagementModule
         ImGui.TableNextColumn();
         ImGui.Text(GetLocationName(item.Container));
         
-        if (Settings.ShowMarketPrices)
+        if (Settings.ShowMarketPrices && item.CanBeTraded)  // Only show prices for tradable items
         {
             // Unit price
             ImGui.TableNextColumn();
@@ -78,20 +72,22 @@ public partial class InventoryManagementModule
             }
             else if (item.MarketPrice.HasValue)
             {
-                ImGui.Text($"{item.MarketPrice.Value:N0}");
+                ImGui.Text($"{item.MarketPrice.Value:N0}g");
             }
             else
             {
                 ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "---");
                 
-                // Fetch price button
-                ImGui.SameLine();
-                if (ImGuiHelpers.GetButtonSize("$").X < ImGui.GetContentRegionAvail().X)
+                // Only show fetch button if not already loading
+                if (!_fetchingPrices.Contains(item.ItemId))
                 {
-                    if (ImGui.SmallButton("$"))
+                    ImGui.SameLine();
+                    ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(2, 2));
+                    if (ImGui.Button($"$##fetch_{item.GetUniqueKey()}", new Vector2(20, 20)))
                     {
                         _ = FetchMarketPrice(item);
                     }
+                    ImGui.PopStyleVar();
                 }
             }
             
@@ -100,7 +96,7 @@ public partial class InventoryManagementModule
             if (item.MarketPrice.HasValue)
             {
                 var total = item.MarketPrice.Value * item.Quantity;
-                ImGui.Text($"{total:N0}");
+                ImGui.Text($"{total:N0}g");
             }
             else
             {
@@ -114,7 +110,7 @@ public partial class InventoryManagementModule
             
             if (!item.CanBeDiscarded)
             {
-                ImGui.TextColored(new Vector4(0.8f, 0.2f, 0.2f, 1), "Protected");
+                ImGui.TextColored(new Vector4(0.8f, 0.2f, 0.2f, 1), "Not Discardable");
             }
             else if (item.IsCollectable)
             {

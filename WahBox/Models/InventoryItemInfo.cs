@@ -16,6 +16,7 @@ public class InventoryItemInfo
     public bool IsHQ { get; set; }
     public uint IconId { get; set; }
     public bool CanBeDiscarded { get; set; }
+    public bool CanBeTraded { get; set; }
     public bool IsCollectable { get; set; }
     public uint SpiritBond { get; set; }
     public ushort Durability { get; set; }
@@ -52,6 +53,7 @@ public class InventoryItemInfo
 
 public class CategoryGroup
 {
+    public uint CategoryId { get; set; }
     public string Name { get; set; } = string.Empty;
     public List<InventoryItemInfo> Items { get; set; } = new();
     public bool IsExpanded { get; set; } = true;

@@ -14,13 +14,17 @@ public unsafe class InventoryHelpers
     private readonly IDataManager _dataManager;
     private readonly IPluginLog _log;
     
-    // Inventory types to scan
-    private static readonly InventoryType[] PlayerInventories = 
+    // Separate inventory type groups
+    private static readonly InventoryType[] MainInventories = 
     {
         InventoryType.Inventory1,
         InventoryType.Inventory2, 
         InventoryType.Inventory3,
-        InventoryType.Inventory4,
+        InventoryType.Inventory4
+    };
+    
+    private static readonly InventoryType[] ArmoryInventories = 
+    {
         InventoryType.ArmoryMainHand,
         InventoryType.ArmoryOffHand,
         InventoryType.ArmoryHead,
@@ -31,13 +35,21 @@ public unsafe class InventoryHelpers
         InventoryType.ArmoryEar,
         InventoryType.ArmoryNeck,
         InventoryType.ArmoryWrist,
-        InventoryType.ArmoryRings,
-        InventoryType.Crystals,
-        InventoryType.Currency,
+        InventoryType.ArmoryRings
+    };
+    
+    private static readonly InventoryType[] SaddlebagInventories = 
+    {
         InventoryType.SaddleBag1,
         InventoryType.SaddleBag2,
         InventoryType.PremiumSaddleBag1,
         InventoryType.PremiumSaddleBag2
+    };
+    
+    private static readonly InventoryType[] OtherInventories = 
+    {
+        InventoryType.Crystals,
+        InventoryType.Currency
     };
     
     public InventoryHelpers(IDataManager dataManager, IPluginLog log)
@@ -46,7 +58,7 @@ public unsafe class InventoryHelpers
         _log = log;
     }
     
-    public List<InventoryItemInfo> GetAllItems()
+    public List<InventoryItemInfo> GetAllItems(bool includeArmory = false, bool includeSaddlebag = false)
     {
         var items = new List<InventoryItemInfo>();
         var itemSheet = _dataManager.GetExcelSheet<Item>();
@@ -64,7 +76,19 @@ public unsafe class InventoryHelpers
             return items;
         }
         
-        foreach (var inventoryType in PlayerInventories)
+        // Always scan main inventory
+        var inventoriesToScan = new List<InventoryType>(MainInventories);
+        
+        // Add optional inventories
+        if (includeArmory)
+            inventoriesToScan.AddRange(ArmoryInventories);
+        if (includeSaddlebag)
+            inventoriesToScan.AddRange(SaddlebagInventories);
+            
+        // Note: We're intentionally excluding Crystals and Currency
+        // as they're not regular items that can be discarded
+        
+        foreach (var inventoryType in inventoriesToScan)
         {
             var inventory = inventoryManager->GetInventoryContainer(inventoryType);
             if (inventory == null) continue;
@@ -87,10 +111,11 @@ public unsafe class InventoryHelpers
                     IsHQ = item->Flags.HasFlag(InventoryItem.ItemFlags.HighQuality),
                     IconId = itemData.Value.Icon,
                     CanBeDiscarded = itemData.Value.IsUntradable == false, // Using IsUntradable as approximation
+                    CanBeTraded = itemData.Value.IsUntradable == false,
                     IsCollectable = item->Flags.HasFlag(InventoryItem.ItemFlags.Collectable),
                     SpiritBond = 0, // Spiritbond property not available in current ClientStructs
                     ItemUICategory = itemData.Value.ItemUICategory.RowId,
-                    CategoryName = GetCategoryName(itemData.Value.ItemUICategory.RowId)
+                    CategoryName = itemData.Value.ItemUICategory.Value.Name.ExtractText()
                 };
                 
                 // Add durability for gear
@@ -120,39 +145,6 @@ public unsafe class InventoryHelpers
         
         // Use AgentInventoryContext to discard the item
         FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentInventoryContext.Instance()->DiscardItem(slot, item.Container, item.Slot, 0);
-    }
-    
-    private string GetCategoryName(uint categoryId)
-    {
-        return categoryId switch
-        {
-            // Weapons
-            1 => "Primary Arms",
-            2 => "Secondary Arms",
-            3 => "One-Handed Arms",
-            4 => "Two-Handed Arms",
-            5 => "Main Hand",
-            // Armor
-            11 => "Head",
-            12 => "Body", 
-            13 => "Legs",
-            14 => "Hands",
-            15 => "Feet",
-            // Accessories
-            40 => "Necklaces",
-            41 => "Earrings",
-            42 => "Bracelets",
-            43 => "Rings",
-            // Consumables
-            44 => "Medicine",
-            46 => "Food",
-            // Materials
-            58 => "Materials",
-            59 => "Crystals",
-            60 => "Catalysts",
-            // Other
-            _ => "Miscellaneous"
-        };
     }
     
     public static bool IsSafeToDiscard(InventoryItemInfo item, HashSet<uint> blacklist)

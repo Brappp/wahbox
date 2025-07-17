@@ -17,7 +17,7 @@ public class UniversalisClient : IDisposable
     private readonly string _worldName;
     
     private const string BaseUrl = "https://universalis.app/api/v2";
-    private const int MaxConcurrentRequests = 3;
+    private const int MaxConcurrentRequests = 10; // Increased from 3 to 10
     
     public UniversalisClient(IPluginLog log, string worldName)
     {

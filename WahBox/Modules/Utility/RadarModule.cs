@@ -1418,7 +1418,8 @@ public class RadarWindow : Window
         Vector2 southLabelPos = center + RotatePoint(new Vector2(0, directionLabelOffset), rotationAngle);
         Vector2 westLabelPos = center + RotatePoint(new Vector2(-directionLabelOffset, 0), rotationAngle);
         
-        (northLabelPos, southLabelPos) = (southLabelPos, northLabelPos);
+        // Note: Game coordinate system has Z pointing North (negative Z is North)
+        // So we don't need to swap N/S labels
         
         float labelScale = 1.2f;
         

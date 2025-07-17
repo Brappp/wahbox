@@ -30,12 +30,13 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     private readonly InventoryHelpers _inventoryHelpers;
     private UniversalisClient _universalisClient;
     private readonly TaskManager _taskManager;
+    private readonly IconCache _iconCache;
     private bool _initialized = false;
     
     // Performance optimization
     private DateTime _lastRefresh = DateTime.MinValue;
     private DateTime _lastCategoryUpdate = DateTime.MinValue;
-    private readonly TimeSpan _refreshInterval = TimeSpan.FromSeconds(5);
+    private readonly TimeSpan _refreshInterval = TimeSpan.FromSeconds(1); // Reduced from 2 to 1 for faster updates
     private readonly TimeSpan _categoryUpdateInterval = TimeSpan.FromMilliseconds(500);
     private bool _expandedCategoriesChanged = false;
     private DateTime _lastConfigSave = DateTime.MinValue;
@@ -52,12 +53,12 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     
     // Filter options
     private bool _showInventory = true;
-    private bool _showArmory = true;
-    private bool _showSaddlebag = true;
+    private bool _showArmory = false;
     private bool _showOnlyHQ = false;
     private bool _showOnlyDiscardable = false;
     private string _selectedWorld = "";
     private List<string> _availableWorlds = new();
+    private bool _filtersExpanded = true; // Show filters by default
     
     // Settings references
     private InventorySettings Settings => Plugin.Configuration.InventorySettings;
@@ -71,6 +72,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     public InventoryManagementModule(Plugin plugin) : base(plugin)
     {
         _inventoryHelpers = new InventoryHelpers(Plugin.DataManager, Plugin.Log);
+        _iconCache = new IconCache(Plugin.TextureProvider);
         
         // Initialize with default world name, will be recreated in Initialize()
         _universalisClient = new UniversalisClient(Plugin.Log, "Aether");
@@ -97,10 +99,11 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             _lastRefresh = DateTime.Now;
             
             var stalePrices = _allItems.Where(item => 
+                item.CanBeTraded && // Only check prices for tradable items
                 !_fetchingPrices.Contains(item.ItemId) &&
                 (!_priceCache.TryGetValue(item.ItemId, out var cached) || 
                  DateTime.Now - cached.fetchTime > TimeSpan.FromMinutes(Settings.PriceCacheDurationMinutes)))
-                .Take(2) // Reduced from 5 to 2 for performance
+                .Take(10) // Increased from 5 to 10 for faster price fetching
                 .ToList();
                 
             foreach (var item in stalePrices)
@@ -155,28 +158,29 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         ImGui.SameLine();
         ImGui.Text($"Total Items: {_allItems.Count} | Selected: {_selectedItems.Count}");
         
-        // Filter section
+        // Compact filter section
         ImGui.Separator();
-        if (ImGui.TreeNode("Filters"))
+        
+        // First row: Location filters
+        ImGui.AlignTextToFramePadding();
+        ImGui.Text("Show:");
+        ImGui.SameLine();
+        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), "[Inventory]");
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Armory", ref _showArmory)) 
         {
-            // Location filters
-            ImGui.Text("Location:");
-            ImGui.SameLine();
-            if (ImGui.Checkbox("Inventory", ref _showInventory)) UpdateCategories();
-            ImGui.SameLine();
-            if (ImGui.Checkbox("Armory", ref _showArmory)) UpdateCategories();
-            ImGui.SameLine();
-            if (ImGui.Checkbox("Saddlebag", ref _showSaddlebag)) UpdateCategories();
-            
-            // Item filters
-            ImGui.Text("Show:");
-            ImGui.SameLine();
-            if (ImGui.Checkbox("Only HQ", ref _showOnlyHQ)) UpdateCategories();
-            ImGui.SameLine();
-            if (ImGui.Checkbox("Only Discardable", ref _showOnlyDiscardable)) UpdateCategories();
-            
-            ImGui.TreePop();
+            RefreshInventory();
         }
+        
+        // Separator
+        ImGui.SameLine();
+        ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "|");
+        
+        // Item filters on same row
+        ImGui.SameLine();
+        if (ImGui.Checkbox("HQ Only", ref _showOnlyHQ)) UpdateCategories();
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Discardable Only", ref _showOnlyDiscardable)) UpdateCategories();
         
         // Settings bar
         ImGui.Separator();
@@ -282,7 +286,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         {
             if (category.Items.Count == 0) continue;
             
-            var isExpanded = ExpandedCategories.GetValueOrDefault((uint)category.Name.GetHashCode(), true);
+            var isExpanded = ExpandedCategories.GetValueOrDefault(category.CategoryId, true);
             
             ImGui.PushID(category.Name);
             
@@ -295,13 +299,23 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             
             if (ImGui.CollapsingHeader(headerText, isExpanded ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None))
             {
-                ExpandedCategories[(uint)category.Name.GetHashCode()] = true;
+                ExpandedCategories[category.CategoryId] = true;
                 _expandedCategoriesChanged = true;
                 DrawCategoryItems(category);
+                
+                // Immediately fetch prices for visible tradable items in this category
+                if (Settings.ShowMarketPrices)
+                {
+                    var tradableItems = category.Items.Where(i => i.CanBeTraded && !i.MarketPrice.HasValue && !_fetchingPrices.Contains(i.ItemId)).Take(5);
+                    foreach (var item in tradableItems)
+                    {
+                        _ = FetchMarketPrice(item);
+                    }
+                }
             }
             else
             {
-                ExpandedCategories[(uint)category.Name.GetHashCode()] = false;
+                ExpandedCategories[category.CategoryId] = false;
                 _expandedCategoriesChanged = true;
             }
             
@@ -475,7 +489,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     
     private void RefreshInventory()
     {
-        _allItems = _inventoryHelpers.GetAllItems();
+        _allItems = _inventoryHelpers.GetAllItems(_showArmory, false); // Always false for saddlebag
         
         // Update market prices from cache
         foreach (var item in _allItems)
@@ -505,23 +519,6 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             filteredItems = filteredItems.Where(i => i.Name.Contains(_searchFilter, StringComparison.OrdinalIgnoreCase));
         }
         
-        // Apply location filters
-        filteredItems = filteredItems.Where(item => 
-        {
-            var isInventory = item.Container >= InventoryType.Inventory1 && item.Container <= InventoryType.Inventory4;
-            var isArmory = item.Container >= InventoryType.ArmoryMainHand && item.Container <= InventoryType.ArmoryRings;
-            var isSaddlebag = item.Container == InventoryType.SaddleBag1 || item.Container == InventoryType.SaddleBag2 ||
-                              item.Container == InventoryType.PremiumSaddleBag1 || item.Container == InventoryType.PremiumSaddleBag2;
-            var isCrystalCurrency = item.Container == InventoryType.Crystals || item.Container == InventoryType.Currency;
-            
-            if (!_showInventory && isInventory) return false;
-            if (!_showArmory && isArmory) return false;
-            if (!_showSaddlebag && isSaddlebag) return false;
-            
-            // Always show crystals and currency
-            return isInventory || isArmory || isSaddlebag || isCrystalCurrency;
-        });
-        
         // Apply item filters
         if (_showOnlyHQ)
         {
@@ -534,11 +531,42 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         }
             
         _categories = filteredItems
-            .GroupBy(i => i.CategoryName)
-            .Select(g => new CategoryGroup
+            .GroupBy(i => new { i.ItemUICategory, i.CategoryName })
+            .Select(categoryGroup => new CategoryGroup
             {
-                Name = g.Key,
-                Items = g.OrderBy(i => i.Name).ToList()
+                CategoryId = categoryGroup.Key.ItemUICategory,
+                Name = categoryGroup.Key.CategoryName,
+                Items = categoryGroup
+                    .GroupBy(i => i.ItemId) // Group same items across different locations
+                    .Select(itemGroup => 
+                    {
+                        var first = itemGroup.First();
+                        // Create a combined item info
+                        return new InventoryItemInfo
+                        {
+                            ItemId = first.ItemId,
+                            Name = first.Name,
+                            Quantity = itemGroup.Sum(i => i.Quantity), // Sum quantities
+                            Container = first.Container, // Keep first container for reference
+                            Slot = first.Slot,
+                            IsHQ = first.IsHQ,
+                            IconId = first.IconId,
+                            CanBeDiscarded = first.CanBeDiscarded,
+                            CanBeTraded = first.CanBeTraded,
+                            IsCollectable = first.IsCollectable,
+                            SpiritBond = first.SpiritBond,
+                            Durability = first.Durability,
+                            MaxDurability = first.MaxDurability,
+                            CategoryName = first.CategoryName,
+                            ItemUICategory = first.ItemUICategory,
+                            MarketPrice = first.MarketPrice,
+                            MarketPriceLoading = first.MarketPriceLoading,
+                            MarketPriceFetchTime = first.MarketPriceFetchTime,
+                            IsSelected = first.IsSelected
+                        };
+                    })
+                    .OrderBy(i => i.Name)
+                    .ToList()
             })
             .OrderBy(c => c.Name)
             .ToList();
@@ -547,6 +575,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     private async Task FetchMarketPrice(InventoryItemInfo item)
     {
         if (_fetchingPrices.Contains(item.ItemId)) return;
+        if (!item.CanBeTraded) return; // Skip untradable items
         
         _fetchingPrices.Add(item.ItemId);
         item.MarketPriceLoading = true;
@@ -722,6 +751,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             Plugin.Configuration.Save();
         }
         
+        _iconCache?.Dispose();
         _taskManager?.Dispose();
         _universalisClient?.Dispose();
         base.Dispose();
