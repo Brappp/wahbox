@@ -1,6 +1,8 @@
 using WahBox.Core.Interfaces;
 using ImGuiNET;
 using Dalamud.Interface.Windowing;
+using System;
+using System.Linq;
 
 namespace WahBox.Core;
 
@@ -64,7 +66,18 @@ public abstract class BaseUtilityModule : BaseModule
     {
         if (ModuleWindow != null)
         {
-            Plugin.WindowSystem.RemoveWindow(ModuleWindow);
+            // Safely remove the window if it's still registered
+            try
+            {
+                if (Plugin.WindowSystem.Windows.Any(w => w == ModuleWindow))
+                {
+                    Plugin.WindowSystem.RemoveWindow(ModuleWindow);
+                }
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Warning(ex, $"Failed to remove window for module {Name}");
+            }
             ModuleWindow = null;
         }
         base.Dispose();

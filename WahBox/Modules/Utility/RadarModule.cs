@@ -12,6 +12,9 @@ using Dalamud.Game.ClientState.Objects.Enums;
 using System.Linq;
 using WahBox.Helpers;
 using ECommons.DalamudServices;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace WahBox.Modules.Utility;
 
@@ -34,6 +37,13 @@ public enum ObjectCategory
     CardStand,
     Ornament,
     IslandSanctuaryObject
+}
+
+public enum AlertFrequencyMode
+{
+    OnlyOnce,
+    EveryInterval,
+    OnEnterLeaveReenter
 }
 
 public class TrackedObject
@@ -62,7 +72,21 @@ public class RadarModule : BaseUtilityModule
     private RadarWindow? _radarWindow;
     private readonly GameObjectTracker _objectTracker;
     private readonly Dictionary<string, DateTime> _recentlyAlertedPlayers = new();
+    private Timer? _alertTimer;
+    private readonly object _alertLock = new object();
+    private bool _pendingAlertCheck = false;
+    private DateTime _lastAlertTime = DateTime.MinValue;
+    private HashSet<string> _alertedPlayerIds = new HashSet<string>();
+    private HashSet<string> _playersCurrentlyInRange = new HashSet<string>();
+    
     public const double ALERT_HIGHLIGHT_DURATION = 5.0;
+    private const int ALERT_CHECK_INTERVAL_MS = 50;
+    
+    [DllImport("winmm.dll", SetLastError = true)]
+    private static extern bool PlaySound(string pszSound, IntPtr hmod, uint fdwSound);
+    
+    private const uint SND_ASYNC = 0x0001;
+    private const uint SND_FILENAME = 0x00020000;
     
     // Configuration
     public bool ShowRadarWindow { get; set; } = true;
@@ -94,6 +118,10 @@ public class RadarModule : BaseUtilityModule
     // Alert settings
     public bool EnablePlayerProximityAlert { get; set; } = false;
     public float PlayerProximityAlertDistance { get; set; } = 25f;
+    public float PlayerProximityAlertCooldown { get; set; } = 5.0f;
+    public AlertFrequencyMode PlayerAlertFrequency { get; set; } = AlertFrequencyMode.OnEnterLeaveReenter;
+    public bool EnableAlertSound { get; set; } = true;
+    public int PlayerProximityAlertSound { get; set; } = 1; // 0=ping, 1=alert, 2=notification, 3=alarm
     
     // In-game overlay settings
     public bool EnableInGameDrawing { get; set; } = false;
@@ -116,6 +144,8 @@ public class RadarModule : BaseUtilityModule
     public bool LockRadarWindow { get; set; } = false;
     public Vector2 RadarWindowLockedPosition { get; set; } = new Vector2(100, 100);
 
+    public IReadOnlyDictionary<string, DateTime> RecentlyAlertedPlayers => _recentlyAlertedPlayers;
+
     public RadarModule(Plugin plugin) : base(plugin)
     {
         IconId = 60961; // Map/Radar icon
@@ -128,11 +158,77 @@ public class RadarModule : BaseUtilityModule
         ModuleWindow = _radarWindow;
     }
 
+    public override void Initialize()
+    {
+        base.Initialize();
+        StartAlertTimer();
+        ApplyRadarVisibility();
+    }
+
+    public override void Load()
+    {
+        base.Load();
+        ApplyRadarVisibility();
+    }
+
+    private void ApplyRadarVisibility()
+    {
+        if (ShowRadarWindow && IsEnabled)
+        {
+            if (ModuleWindow != null && !ModuleWindow.IsOpen)
+            {
+                ModuleWindow.IsOpen = true;
+            }
+        }
+        else
+        {
+            if (ModuleWindow != null && ModuleWindow.IsOpen)
+            {
+                ModuleWindow.IsOpen = false;
+            }
+        }
+    }
+
+    public override void OpenWindow()
+    {
+        base.OpenWindow();
+        ShowRadarWindow = true;
+    }
+
+    public override void CloseWindow()
+    {
+        base.CloseWindow();
+        ShowRadarWindow = false;
+    }
+
     public override void Update()
     {
         base.Update();
         
-        // Clean up old alerts
+        // Check for pending alerts
+        bool shouldCheck = false;
+        lock (_alertLock)
+        {
+            if (_pendingAlertCheck)
+            {
+                shouldCheck = true;
+                _pendingAlertCheck = false;
+            }
+        }
+        
+        if (shouldCheck)
+        {
+            try
+            {
+                CheckPlayerProximity();
+            }
+            catch (Exception ex)
+            {
+                Plugin.Log.Error($"Error checking player proximity: {ex.Message}");
+            }
+        }
+        
+        // Clean up old alert highlights
         var now = DateTime.Now;
         var keysToRemove = _recentlyAlertedPlayers
             .Where(kvp => (now - kvp.Value).TotalSeconds > ALERT_HIGHLIGHT_DURATION)
@@ -143,40 +239,209 @@ public class RadarModule : BaseUtilityModule
         {
             _recentlyAlertedPlayers.Remove(key);
         }
+    }
+
+    public override void Dispose()
+    {
+        StopAlertTimer();
+        base.Dispose();
+    }
+
+    private void StartAlertTimer()
+    {
+        StopAlertTimer();
         
-        // Check for player proximity alerts
-        if (EnablePlayerProximityAlert && Plugin.ClientState.LocalPlayer != null)
+        _alertTimer = new Timer(
+            _ => RequestAlertCheck(),
+            null,
+            0,
+            ALERT_CHECK_INTERVAL_MS
+        );
+    }
+    
+    private void StopAlertTimer()
+    {
+        if (_alertTimer != null)
         {
-            var trackedObjects = GetTrackedObjects();
-            foreach (var obj in trackedObjects)
+            _alertTimer.Dispose();
+            _alertTimer = null;
+        }
+    }
+    
+    private void RequestAlertCheck()
+    {
+        lock (_alertLock)
+        {
+            _pendingAlertCheck = true;
+        }
+    }
+
+    private void CheckPlayerProximity()
+    {
+        if (!EnablePlayerProximityAlert || Plugin.ClientState.LocalPlayer == null)
+            return;
+            
+        var currentTime = DateTime.Now;
+        bool cooldownExpired = (currentTime - _lastAlertTime).TotalSeconds >= PlayerProximityAlertCooldown;
+        
+        // Skip if still in cooldown
+        if (!cooldownExpired)
+            return;
+            
+        // Process different alert frequency modes
+        switch (PlayerAlertFrequency)
+        {
+            case AlertFrequencyMode.OnlyOnce:
+                break;
+                
+            case AlertFrequencyMode.EveryInterval:
+                _alertedPlayerIds.Clear();
+                break;
+                
+            case AlertFrequencyMode.OnEnterLeaveReenter:
+                break;
+        }
+        
+        var trackedObjects = GetTrackedObjects();
+        if (trackedObjects.Count == 0)
+            return;
+            
+        bool anyPlayerInRange = false;
+        List<string> playersInRange = new List<string>();
+        HashSet<string> currentlyInRange = new HashSet<string>();
+        
+        foreach (var obj in trackedObjects)
+        {
+            if (obj.Category != ObjectCategory.Player)
+                continue;
+                
+            if (obj.Distance <= PlayerProximityAlertDistance)
             {
-                if (obj.Category == ObjectCategory.Player && obj.Distance <= PlayerProximityAlertDistance)
+                currentlyInRange.Add(obj.ObjectId);
+                
+                if (PlayerAlertFrequency == AlertFrequencyMode.OnEnterLeaveReenter)
                 {
-                    if (!_recentlyAlertedPlayers.ContainsKey(obj.ObjectId))
+                    if (!_playersCurrentlyInRange.Contains(obj.ObjectId) || 
+                        (!_playersCurrentlyInRange.Contains(obj.ObjectId) && !_alertedPlayerIds.Contains(obj.ObjectId)))
                     {
-                        _recentlyAlertedPlayers[obj.ObjectId] = DateTime.Now;
-                        // TODO: Play alert sound
-                        Plugin.ChatGui.Print($"[Radar] Player nearby: {obj.Name} ({obj.Distance:F1}y)");
+                        anyPlayerInRange = true;
+                        playersInRange.Add($"{obj.Name} ({obj.Distance:F1} yalms)");
+                        _alertedPlayerIds.Add(obj.ObjectId);
+                    }
+                }
+                else
+                {
+                    if (!_alertedPlayerIds.Contains(obj.ObjectId))
+                    {
+                        anyPlayerInRange = true;
+                        playersInRange.Add($"{obj.Name} ({obj.Distance:F1} yalms)");
+                        _alertedPlayerIds.Add(obj.ObjectId);
                     }
                 }
             }
         }
         
-        // Draw in-game overlay if enabled
-        if (EnableInGameDrawing && Status == ModuleStatus.Active)
+        // Handle player tracking for enter/leave/reenter mode
+        if (PlayerAlertFrequency == AlertFrequencyMode.OnEnterLeaveReenter)
         {
-            DrawInGameOverlay();
+            foreach (var playerId in _playersCurrentlyInRange)
+            {
+                if (!currentlyInRange.Contains(playerId))
+                {
+                    // Player left range, remove from alerts to enable redetection
+                    _alertedPlayerIds.Remove(playerId);
+                }
+            }
+            
+            // Update tracking list for next check
+            _playersCurrentlyInRange = currentlyInRange;
+        }
+        
+        // Play alert if any players triggered
+        if (anyPlayerInRange)
+        {
+            if (EnableAlertSound)
+            {
+                PlayAlertSound(PlayerProximityAlertSound);
+            }
+            _lastAlertTime = currentTime;
+            
+            if (playersInRange.Count > 0)
+            {
+                Plugin.Log.Debug($"Alert triggered by: {string.Join(", ", playersInRange)}");
+                Plugin.ChatGui.Print($"[Radar] Player nearby: {string.Join(", ", playersInRange)}");
+                
+                // Add triggering players to highlighted list
+                foreach (var obj in trackedObjects)
+                {
+                    if (obj.Category == ObjectCategory.Player && 
+                        obj.Distance <= PlayerProximityAlertDistance &&
+                        playersInRange.Any(p => p.StartsWith(obj.Name)))
+                    {
+                        _recentlyAlertedPlayers[obj.ObjectId] = currentTime;
+                    }
+                }
+            }
+        }
+    }
+
+    public void PlayAlertSound(int soundId)
+    {
+        try
+        {
+            string soundFilePath;
+            string soundFileName;
+            
+            switch (soundId)
+            {
+                case 0:
+                    soundFileName = "ping.wav";
+                    break;
+                case 1:
+                    soundFileName = "alert.wav";
+                    break;
+                case 2:
+                    soundFileName = "notification.wav";
+                    break;
+                case 3:
+                    soundFileName = "alarm.wav";
+                    break;
+                default:
+                    soundFileName = "ping.wav";
+                    break;
+            }
+            
+            // Try to find the sound file in the Data/sounds directory
+            soundFilePath = Path.Combine(Plugin.PluginInterface.AssemblyLocation.DirectoryName!, "Data", "sounds", soundFileName);
+            
+            if (!File.Exists(soundFilePath))
+            {
+                Plugin.Log.Error($"Could not find sound file: {soundFileName} at {soundFilePath}");
+                return;
+            }
+            
+            PlaySound(soundFilePath, IntPtr.Zero, SND_FILENAME | SND_ASYNC);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error($"Error playing alert sound: {ex.Message}");
+        }
+    }
+
+    public void ClearAlertData()
+    {
+        lock (_alertLock)
+        {
+            _alertedPlayerIds.Clear();
+            _playersCurrentlyInRange.Clear();
+            _recentlyAlertedPlayers.Clear();
+            Plugin.Log.Debug("Alert tracking data has been cleared due to frequency mode change");
         }
     }
 
     public List<TrackedObject> GetTrackedObjects()
     {
         return _objectTracker.GetTrackedObjects();
-    }
-
-    public Dictionary<string, DateTime> GetRecentlyAlertedPlayers()
-    {
-        return _recentlyAlertedPlayers;
     }
 
     public override void DrawConfig()
@@ -189,7 +454,10 @@ public class RadarModule : BaseUtilityModule
         {
             var showRadarWindow = ShowRadarWindow;
             if (ImGui.Checkbox("Show Radar Window", ref showRadarWindow))
+            {
                 ShowRadarWindow = showRadarWindow;
+                ApplyRadarVisibility();
+            }
             
             var detectionRadius = DetectionRadius;
             if (ImGui.SliderFloat("Detection Radius", ref detectionRadius, 10f, 100f, "%.0f yalms"))
@@ -284,6 +552,30 @@ public class RadarModule : BaseUtilityModule
                 var showAlertRing = ShowAlertRing;
                 if (ImGui.Checkbox("Show Alert Ring", ref showAlertRing))
                     ShowAlertRing = showAlertRing;
+
+                float alertCooldown = PlayerProximityAlertCooldown;
+                if (ImGui.SliderFloat("Alert Cooldown (seconds)", ref alertCooldown, 0.1f, 10f, "%.1f"))
+                    PlayerProximityAlertCooldown = alertCooldown;
+
+                int alertFrequency = (int)PlayerAlertFrequency;
+                if (ImGui.Combo("Alert Frequency", ref alertFrequency, new[] { "Only Once", "Every Interval", "On Enter/Leave/Reenter" }, 3))
+                {
+                    PlayerAlertFrequency = (AlertFrequencyMode)alertFrequency;
+                    ClearAlertData(); // Clear alerts when frequency changes
+                }
+
+                bool enableAlertSound = EnableAlertSound;
+                if (ImGui.Checkbox("Enable Alert Sound", ref enableAlertSound))
+                    EnableAlertSound = enableAlertSound;
+
+                if (EnableAlertSound)
+                {
+                    int alertSound = PlayerProximityAlertSound;
+                    if (ImGui.Combo("Alert Sound", ref alertSound, new[] { "Ping", "Alert", "Notification", "Alarm" }, 4))
+                    {
+                        PlayerProximityAlertSound = alertSound;
+                    }
+                }
             }
         }
         
@@ -334,7 +626,7 @@ public class RadarModule : BaseUtilityModule
         }
     }
     
-    private void DrawInGameOverlay()
+    public void DrawInGameOverlay()
     {
         var player = Plugin.ClientState.LocalPlayer;
         if (player == null || !EnableInGameDrawing)
@@ -355,8 +647,7 @@ public class RadarModule : BaseUtilityModule
                     player.Position,
                     DetectionRadius,
                     InGameRadiusColor,
-                    InGameLineThickness,
-                    Svc.GameGui);
+                    InGameLineThickness);
             }
             
             // Draw objects
@@ -370,8 +661,7 @@ public class RadarModule : BaseUtilityModule
                     GameDrawing.DrawDot(
                         obj.Position, 
                         InGameDotSize, 
-                        color,
-                        Svc.GameGui);
+                        color);
                 }
                 
                 // Draw tethers/lines based on object type and configuration
@@ -385,8 +675,7 @@ public class RadarModule : BaseUtilityModule
                         player.Position,
                         obj.Position,
                         InGameLineThickness,
-                        tetherColor,
-                        Svc.GameGui);
+                        tetherColor);
                         
                     // Draw distance text if enabled
                     if (DrawDistanceText)
@@ -402,8 +691,7 @@ public class RadarModule : BaseUtilityModule
                         GameDrawing.DrawText(
                             midpoint,
                             distanceText,
-                            InGameTextColor,
-                            Svc.GameGui);
+                            InGameTextColor);
                     }
                 }
             }
@@ -925,7 +1213,7 @@ public class RadarWindow : Window
     private void DrawTrackedObjects(ImDrawListPtr drawList, Vector2 center, float radarSize, float rotation, IGameObject player)
     {
         var trackedObjects = _module.GetTrackedObjects();
-        var recentlyAlertedPlayers = _module.GetRecentlyAlertedPlayers();
+        var recentlyAlertedPlayers = _module.RecentlyAlertedPlayers;
         
         foreach (var obj in trackedObjects)
         {

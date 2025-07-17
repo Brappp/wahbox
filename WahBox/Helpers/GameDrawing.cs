@@ -94,11 +94,11 @@ namespace WahBox.Helpers
             }
         }
 
-        public static void DrawDot(Vector3 position, float thickness, Vector4 color, IGameGui gameGui)
+        public static void DrawDot(Vector3 position, float thickness, Vector4 color)
         {
             if (!_overlayDrawing) return;
             
-            if (gameGui.WorldToScreen(position, out Vector2 screenPos))
+            if (Plugin.GameGui.WorldToScreen(position, out Vector2 screenPos))
             {
                 _drawList.AddCircleFilled(
                     screenPos,
@@ -108,12 +108,12 @@ namespace WahBox.Helpers
             }
         }
 
-        public static void DrawLine(Vector3 start, Vector3 end, float thickness, Vector4 color, IGameGui gameGui)
+        public static void DrawLine(Vector3 start, Vector3 end, float thickness, Vector4 color)
         {
             if (!_overlayDrawing) return;
             
-            if (gameGui.WorldToScreen(start, out Vector2 startPos) && 
-                gameGui.WorldToScreen(end, out Vector2 endPos))
+            if (Plugin.GameGui.WorldToScreen(start, out Vector2 startPos) && 
+                Plugin.GameGui.WorldToScreen(end, out Vector2 endPos))
             {
                 _drawList.AddLine(
                     startPos,
@@ -123,11 +123,11 @@ namespace WahBox.Helpers
             }
         }
 
-        public static void DrawText(Vector3 position, string text, Vector4 color, IGameGui gameGui)
+        public static void DrawText(Vector3 position, string text, Vector4 color)
         {
             if (!_overlayDrawing) return;
             
-            if (gameGui.WorldToScreen(position, out Vector2 screenPos))
+            if (Plugin.GameGui.WorldToScreen(position, out Vector2 screenPos))
             {
                 var textSize = ImGui.CalcTextSize(text);
                 _drawList.AddText(
@@ -137,7 +137,7 @@ namespace WahBox.Helpers
             }
         }
 
-        public static void DrawCircle(Vector3 position, float radius, Vector4 color, float thickness, IGameGui gameGui)
+        public static void DrawCircle(Vector3 position, float radius, Vector4 color, float thickness = 1.0f)
         {
             if (!_overlayDrawing) return;
             
@@ -154,7 +154,7 @@ namespace WahBox.Helpers
                 float z = position.Z + radius * MathF.Sin(angle);
                 
                 Vector3 worldPos = new Vector3(x, position.Y, z);
-                bool valid = gameGui.WorldToScreen(worldPos, out Vector2 screenPos);
+                bool valid = Plugin.GameGui.WorldToScreen(worldPos, out Vector2 screenPos);
                 
                 if (valid && prevValid && prevScreenPos.HasValue)
                 {
@@ -170,11 +170,11 @@ namespace WahBox.Helpers
             }
         }
         
-        public static void DrawDirectionalIndicator(Vector3 position, float rotation, float size, Vector4 circleColor, Vector4 arrowColor, IGameGui gameGui)
+        public static void DrawDirectionalIndicator(Vector3 position, float rotation, float size, Vector4 circleColor, Vector4 arrowColor)
         {
             if (!_overlayDrawing) return;
             
-            if (!gameGui.WorldToScreen(position, out Vector2 centerScreenPos))
+            if (!Plugin.GameGui.WorldToScreen(position, out Vector2 centerScreenPos))
                 return;
                 
             _drawList.AddCircleFilled(

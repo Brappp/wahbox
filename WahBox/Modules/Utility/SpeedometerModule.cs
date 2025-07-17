@@ -23,6 +23,9 @@ public class SpeedometerModule : BaseUtilityModule
     public float NeedleDamping { get; set; } = 0.1f;
     public int SelectedSpeedometerType { get; set; } = 0; // 0 = Classic, 1 = NyanCat
 
+    // Public accessor for ClientState
+    public Dalamud.Plugin.Services.IClientState ClientState => Plugin.ClientState;
+
     public SpeedometerModule(Plugin plugin) : base(plugin)
     {
         IconId = 60954; // Speed/Movement icon
@@ -33,6 +36,48 @@ public class SpeedometerModule : BaseUtilityModule
     {
         _speedometerWindow = new SpeedometerWindow(this);
         ModuleWindow = _speedometerWindow;
+    }
+
+    public override void Initialize()
+    {
+        base.Initialize();
+        ApplySpeedometerVisibility();
+    }
+
+    public override void Load()
+    {
+        base.Load();
+        ApplySpeedometerVisibility();
+    }
+
+    private void ApplySpeedometerVisibility()
+    {
+        if (ShowSpeedometerOnStartup && IsEnabled)
+        {
+            if (ModuleWindow != null && !ModuleWindow.IsOpen)
+            {
+                ModuleWindow.IsOpen = true;
+            }
+        }
+        else
+        {
+            if (ModuleWindow != null && ModuleWindow.IsOpen)
+            {
+                ModuleWindow.IsOpen = false;
+            }
+        }
+    }
+
+    public override void OpenWindow()
+    {
+        base.OpenWindow();
+        ShowSpeedometerOnStartup = true;
+    }
+
+    public override void CloseWindow()
+    {
+        base.CloseWindow();
+        ShowSpeedometerOnStartup = false;
     }
 
     public override void Update()
@@ -59,26 +104,41 @@ public class SpeedometerModule : BaseUtilityModule
         
         if (ImGui.CollapsingHeader("Display Settings"))
         {
-            ImGui.Checkbox("Show on Startup", ref ShowSpeedometerOnStartup);
+            bool showOnStartup = ShowSpeedometerOnStartup;
+            if (ImGui.Checkbox("Show on Startup", ref showOnStartup))
+            {
+                ShowSpeedometerOnStartup = showOnStartup;
+                ApplySpeedometerVisibility();
+            }
             
             string[] speedometerTypes = { "Classic Gauge", "Nyan Cat" };
-            ImGui.Combo("Display Style", ref SelectedSpeedometerType, speedometerTypes, speedometerTypes.Length);
+            int selectedType = SelectedSpeedometerType;
+            if (ImGui.Combo("Display Style", ref selectedType, speedometerTypes, speedometerTypes.Length))
+            {
+                SelectedSpeedometerType = selectedType;
+            }
         }
         
         if (ImGui.CollapsingHeader("Gauge Settings"))
         {
-            if (ImGui.SliderFloat("Max Speed", ref MaxYalms, 5.0f, 50.0f, "%.0f y/s"))
+            float maxYalms = MaxYalms;
+            if (ImGui.SliderFloat("Max Speed", ref maxYalms, 5.0f, 50.0f, "%.0f y/s"))
             {
+                MaxYalms = maxYalms;
                 _speedometerWindow?.GetRenderer()?.SetMaxYalms(MaxYalms);
             }
             
-            if (ImGui.SliderFloat("Redline Start", ref RedlineStart, 0.0f, MaxYalms, "%.0f y/s"))
+            float redlineStart = RedlineStart;
+            if (ImGui.SliderFloat("Redline Start", ref redlineStart, 0.0f, MaxYalms, "%.0f y/s"))
             {
+                RedlineStart = redlineStart;
                 _speedometerWindow?.GetRenderer()?.SetRedlineStart(RedlineStart);
             }
             
-            if (ImGui.SliderFloat("Needle Smoothing", ref NeedleDamping, 0.01f, 1.0f, "%.2f"))
+            float needleDamping = NeedleDamping;
+            if (ImGui.SliderFloat("Needle Smoothing", ref needleDamping, 0.01f, 1.0f, "%.2f"))
             {
+                NeedleDamping = needleDamping;
                 _yalmsCalculator.SetDamping(NeedleDamping);
             }
             
@@ -433,7 +493,7 @@ public class SpeedometerWindow : Window
 
     public override void Draw()
     {
-        var localPlayer = _module.Plugin.ClientState.LocalPlayer;
+        var localPlayer = _module.ClientState.LocalPlayer;
         if (localPlayer == null)
         {
             ImGui.Text("Player not available");

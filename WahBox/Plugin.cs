@@ -23,6 +23,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
     [PluginService] internal static ICondition Condition { get; private set; } = null!;
     [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
     [PluginService] internal static IGameInteropProvider GameInteropProvider { get; private set; } = null!;
@@ -208,18 +209,19 @@ public sealed class Plugin : IDalamudPlugin
         SaveCharacterData();
         UnregisterEventHandlers();
         
+        // Dispose systems in reverse order (modules first so they can clean up their windows)
+        ModuleManager?.Dispose();
+        // Removed localization
+        NotificationManager?.Dispose();
+        TeleportManager?.Dispose();
+        
+        // Remove any remaining windows after modules have cleaned up
         WindowSystem.RemoveAllWindows();
 
         ConfigWindow.Dispose();
         DashboardWindow.Dispose();
 
         CommandManager.RemoveHandler(MainCommand);
-        
-        // Dispose systems in reverse order
-        ModuleManager?.Dispose();
-        // Removed localization
-        NotificationManager?.Dispose();
-        TeleportManager?.Dispose();
         
         ECommonsMain.Dispose();
     }
@@ -234,6 +236,25 @@ public sealed class Plugin : IDalamudPlugin
     private void DrawUI()
     {
         WindowSystem.Draw();
+        
+        // Draw in-game overlays for active utility modules
+        if (ClientState.LocalPlayer != null)
+        {
+            DrawInGameOverlays();
+        }
+    }
+    
+    private void DrawInGameOverlays()
+    {
+        foreach (var module in ModuleManager.GetModules())
+        {
+            if (module is Modules.Utility.RadarModule radarModule && 
+                radarModule.Status == Core.Interfaces.ModuleStatus.Active && 
+                radarModule.EnableInGameDrawing)
+            {
+                radarModule.DrawInGameOverlay();
+            }
+        }
     }
 
     public void ToggleConfigUI() => ConfigWindow.Toggle();
