@@ -8,7 +8,6 @@ public class PoeticTomestoneModule : BaseCurrencyModule
 
     public PoeticTomestoneModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65049; // Poetics icon
         _currencyIds.Add(28); // Allagan Tomestone of Poetics
     }
 

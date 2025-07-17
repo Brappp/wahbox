@@ -8,7 +8,6 @@ public class CenturioSealsModule : BaseCurrencyModule
 
     public CenturioSealsModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65065; // Centurio Seals icon
         _currencyIds.Add(10307); // Centurio Seals
     }
 

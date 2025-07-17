@@ -8,7 +8,6 @@ public class TrophyCrystalsModule : BaseCurrencyModule
 
     public TrophyCrystalsModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65088; // Trophy Crystals icon
         _currencyIds.Add(36656); // Trophy Crystals
     }
 

@@ -8,7 +8,6 @@ public class HeliometryTomestoneModule : BaseCurrencyModule
 
     public HeliometryTomestoneModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65077; // Heliometry icon
         _currencyIds.Add(48); // Allagan Tomestone of Heliometry
     }
 

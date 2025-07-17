@@ -8,7 +8,6 @@ public class WhiteScripsModule : BaseCurrencyModule
 
     public WhiteScripsModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65074; // White Scrips icon
         _currencyIds.Add(25199); // White Scrips
     }
 

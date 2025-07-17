@@ -8,7 +8,6 @@ public class BicolorGemstonesModule : BaseCurrencyModule
 
     public BicolorGemstonesModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65087; // Bicolor Gemstones icon
         _currencyIds.Add(26807); // Bicolor Gemstones
     }
 

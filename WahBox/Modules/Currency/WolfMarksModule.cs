@@ -8,7 +8,6 @@ public class WolfMarksModule : BaseCurrencyModule
 
     public WolfMarksModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65066; // Wolf Marks icon
         _currencyIds.Add(25); // Wolf Marks
     }
 

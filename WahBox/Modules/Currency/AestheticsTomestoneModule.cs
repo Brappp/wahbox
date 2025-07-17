@@ -8,7 +8,6 @@ public class AestheticsTomestoneModule : BaseCurrencyModule
 
     public AestheticsTomestoneModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65076; // Aesthetics icon
         _currencyIds.Add(47); // Allagan Tomestone of Aesthetics
     }
 

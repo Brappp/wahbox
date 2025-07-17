@@ -8,7 +8,6 @@ public class GrandCompanyModule : BaseCurrencyModule
 
     public GrandCompanyModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65004; // GC Seals icon
         // Add all three GC seal types
         _currencyIds.Add(20); // Storm Seals
         _currencyIds.Add(21); // Serpent Seals

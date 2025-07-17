@@ -8,7 +8,6 @@ public class PurpleScripsModule : BaseCurrencyModule
 
     public PurpleScripsModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65075; // Purple Scrips icon
         _currencyIds.Add(33913); // Purple Scrips
     }
 

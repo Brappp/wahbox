@@ -8,7 +8,6 @@ public class SackOfNutsModule : BaseCurrencyModule
 
     public SackOfNutsModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65067; // Sacks of Nuts icon
         _currencyIds.Add(26533); // Sack of Nuts
     }
 

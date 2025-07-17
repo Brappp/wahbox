@@ -8,7 +8,6 @@ public class AlliedSealsModule : BaseCurrencyModule
 
     public AlliedSealsModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65064; // Allied Seals icon
         _currencyIds.Add(27); // Allied Seals
     }
 

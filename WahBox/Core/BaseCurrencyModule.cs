@@ -19,6 +19,25 @@ public abstract class BaseCurrencyModule : BaseModule, ICurrencyModule
         // Category is determined by base class
     }
     
+    // Override IconId to get it from the first currency item
+    public override uint IconId
+    {
+        get
+        {
+            if (_currencyIds.Count == 0) return 0;
+            
+            try
+            {
+                var item = Plugin.DataManager.GetExcelSheet<Lumina.Excel.Sheets.Item>()?.GetRow(_currencyIds[0]);
+                return item?.Icon ?? 0;
+            }
+            catch
+            {
+                return 0;
+            }
+        }
+    }
+    
     public override ModuleType Type => ModuleType.Currency;
     
     public virtual List<TrackedCurrency> GetTrackedCurrencies()

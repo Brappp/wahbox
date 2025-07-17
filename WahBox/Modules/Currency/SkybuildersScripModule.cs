@@ -8,7 +8,6 @@ public class SkybuildersScripModule : BaseCurrencyModule
 
     public SkybuildersScripModule(Plugin plugin) : base(plugin)
     {
-        IconId = 65073; // Skybuilders' Scrips icon
         _currencyIds.Add(28063); // Skybuilders' Scrips
     }
 
