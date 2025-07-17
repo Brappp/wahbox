@@ -302,14 +302,14 @@ public class MainWindow : Window, IDisposable
         // Currency specific display
         if (module is ICurrencyModule currencyModule)
         {
-            ImGui.SameLine(300);
+            ImGui.SameLine(280);
             
             var current = currencyModule.GetCurrentAmount();
             var max = currencyModule.GetMaxAmount();
             var percent = max > 0 ? (float)current / max * 100f : 0f;
             
             // Progress bar
-            var progressBarSize = new Vector2(150, 20);
+            var progressBarSize = new Vector2(120, 20);
             var color = percent >= currencyModule.AlertThreshold ? new Vector4(0.8f, 0.2f, 0.2f, 1) :
                        percent >= 75 ? new Vector4(0.8f, 0.8f, 0.2f, 1) :
                        new Vector4(0.2f, 0.8f, 0.2f, 1);
@@ -323,9 +323,9 @@ public class MainWindow : Window, IDisposable
             
             // Alert threshold settings
             ImGui.SameLine();
-            ImGui.Text(" Alert at:");
+            ImGui.Text("Alert at:");
             ImGui.SameLine();
-            ImGui.SetNextItemWidth(50);
+            ImGui.SetNextItemWidth(40);
             
             var threshold = currencyModule.AlertThreshold;
             if (ImGui.InputInt($"##{module.Name}_threshold", ref threshold, 0, 0))
