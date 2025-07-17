@@ -1,91 +1,146 @@
 using System;
-using System.Collections.Generic;
+using System.IO;
+using System.Runtime.InteropServices;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
-using Dalamud.Game.Text.SeStringHandling.Payloads;
-using ECommons.ChatMethods;
+using Dalamud.Interface.ImGuiNotification;
 
 namespace WahBox.Systems;
 
 public class NotificationManager : IDisposable
 {
-    private readonly HashSet<string> _recentNotifications = new();
-    private DateTime _lastCleanup = DateTime.UtcNow;
-    private readonly TimeSpan _notificationCooldown = TimeSpan.FromMinutes(5);
-
+    private readonly Plugin _plugin;
+    
+    [DllImport("winmm.dll", SetLastError = true)]
+    private static extern bool PlaySound(string pszSound, IntPtr hmod, uint fdwSound);
+    
+    private const uint SND_ASYNC = 0x0001;
+    private const uint SND_FILENAME = 0x00020000;
+    
+    public NotificationManager()
+    {
+        _plugin = Plugin.Instance;
+    }
+    
     public void Initialize()
     {
-        Plugin.Framework.Update += OnFrameworkUpdate;
+        // Any initialization if needed
     }
-
-    public void Dispose()
+    
+    public void SendNotification(string message, WahBoxNotificationType type = WahBoxNotificationType.Info)
     {
-        Plugin.Framework.Update -= OnFrameworkUpdate;
-    }
-
-    private void OnFrameworkUpdate(Dalamud.Plugin.Services.IFramework framework)
-    {
-        // Clean up old notifications every minute
-        if (DateTime.UtcNow - _lastCleanup > TimeSpan.FromMinutes(1))
+        var config = _plugin.Configuration.NotificationSettings;
+        
+        // Check if we should suppress notifications
+        if (config.SuppressInDuty && Plugin.Condition[Dalamud.Game.ClientState.Conditions.ConditionFlag.BoundByDuty])
+            return;
+        
+        // Chat notification
+        if (config.ChatNotifications)
         {
-            _recentNotifications.Clear();
-            _lastCleanup = DateTime.UtcNow;
+            var chatType = type switch
+            {
+                WahBoxNotificationType.Warning => XivChatType.ErrorMessage,
+                WahBoxNotificationType.Error => XivChatType.ErrorMessage,
+                WahBoxNotificationType.Success => XivChatType.Echo,
+                _ => XivChatType.Echo
+            };
+            
+            Plugin.ChatGui.Print(new SeStringBuilder()
+                .AddText("[WahBox] ")
+                .AddText(message)
+                .Build());
+        }
+        
+        // Toast notification
+        if (config.EnableToastNotifications)
+        {
+            var notification = new Notification
+            {
+                Content = message,
+                Title = "WahBox",
+                Type = type switch
+                {
+                    WahBoxNotificationType.Warning => NotificationType.Warning,
+                    WahBoxNotificationType.Error => NotificationType.Error,
+                    WahBoxNotificationType.Success => NotificationType.Success,
+                    _ => NotificationType.Info
+                }
+            };
+            
+            Plugin.PluginInterface.UiBuilder.AddNotification(notification);
+        }
+        
+        // Sound notification
+        if (config.EnableSoundAlerts)
+        {
+            var soundId = type switch
+            {
+                WahBoxNotificationType.Warning => config.CurrencyAlertSound,
+                WahBoxNotificationType.Success => config.TaskCompleteSound,
+                _ => 0
+            };
+            
+            PlaySound(soundId);
         }
     }
-
+    
+    public void PlaySound(int soundId)
+    {
+        try
+        {
+            string soundFileName = soundId switch
+            {
+                0 => "ping.wav",
+                1 => "alert.wav",
+                2 => "notification.wav",
+                3 => "alarm.wav",
+                _ => "ping.wav"
+            };
+            
+            var soundFilePath = Path.Combine(Plugin.PluginInterface.AssemblyLocation.DirectoryName!, "Data", "sounds", soundFileName);
+            
+            if (!File.Exists(soundFilePath))
+            {
+                Plugin.Log.Error($"Could not find sound file: {soundFileName} at {soundFilePath}");
+                return;
+            }
+            
+            PlaySound(soundFilePath, IntPtr.Zero, SND_FILENAME | SND_ASYNC);
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error($"Error playing sound: {ex.Message}");
+        }
+    }
+    
+    public void SendModuleComplete(string moduleName, string? details = null)
+    {
+        if (_plugin.Configuration.NotificationSettings.TaskCompletionAlerts)
+        {
+            var message = string.IsNullOrEmpty(details) ? $"{moduleName} completed!" : details;
+            SendNotification(message, WahBoxNotificationType.Success);
+        }
+    }
+    
     public void SendCurrencyWarning(string currencyName, int current, int threshold)
     {
-        var key = $"currency_{currencyName}_{DateTime.UtcNow:yyyyMMddHH}";
-        if (_recentNotifications.Contains(key)) return;
-
-        var message = new SeStringBuilder()
-            .AddUiForeground($"[Wahdori] ", 506)
-            .AddText($"{currencyName} is at ")
-            .AddUiForeground($"{current:N0}/{threshold:N0}", 500)
-            .AddText(" - Near cap!")
-            .Build();
-
-        Plugin.ChatGui.Print(message);
-        _recentNotifications.Add(key);
-    }
-
-    public void SendModuleComplete(string moduleName, string details = "")
-    {
-        var key = $"module_{moduleName}_{DateTime.UtcNow:yyyyMMdd}";
-        if (_recentNotifications.Contains(key)) return;
-
-        var message = new SeStringBuilder()
-            .AddUiForeground($"[Wahdori] ", 506)
-            .AddText($"{moduleName} ")
-            .AddUiForeground("Complete!", 43)
-            .Build();
-
-        if (!string.IsNullOrEmpty(details))
+        if (_plugin.Configuration.NotificationSettings.CurrencyWarningAlerts)
         {
-            message.Append($" {details}");
+            SendNotification($"{currencyName} is near cap: {current:N0}/{threshold:N0}", WahBoxNotificationType.Warning);
         }
-
-        Plugin.ChatGui.Print(message);
-        _recentNotifications.Add(key);
     }
-
-    public void SendReminder(string title, string message)
+    
+    public void Dispose()
     {
-        var seMessage = new SeStringBuilder()
-            .AddUiForeground($"[Wahdori] {title}: ", 506)
-            .AddText(message)
-            .Build();
-
-        Plugin.ChatGui.Print(seMessage);
+        // Cleanup if needed
     }
+}
 
-    public void SendError(string message)
-    {
-        var seMessage = new SeStringBuilder()
-            .AddUiForeground($"[Wahdori Error] ", 17)
-            .AddText(message)
-            .Build();
-
-        Plugin.ChatGui.PrintError(seMessage);
-    }
-} 
+public enum WahBoxNotificationType
+{
+    Info,
+    Success,
+    Warning,
+    Error
+}

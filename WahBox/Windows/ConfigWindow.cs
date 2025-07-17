@@ -18,7 +18,7 @@ public class ConfigWindow : Window, IDisposable
     private ModuleType? _selectedModuleType = null;
     private IModule? _selectedModule = null;
 
-    public ConfigWindow(Plugin plugin) : base("Wahdori Settings###WahdoriConfig")
+    public ConfigWindow(Plugin plugin) : base("WahBox Settings###WahBoxConfig")
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -80,18 +80,7 @@ public class ConfigWindow : Window, IDisposable
             Configuration.Save();
         }
         
-        ImGui.Spacing();
-        
-        // Display Settings
-        ImGui.Text("Display");
-        ImGui.Separator();
-        
-        var sortByStatus = Configuration.UISettings.SortByStatus;
-        if (ImGui.Checkbox("Sort by Status", ref sortByStatus))
-        {
-            Configuration.UISettings.SortByStatus = sortByStatus;
-            Configuration.Save();
-        }
+        // Additional settings can be added here
     }
 
     private void DrawModulesSettings()

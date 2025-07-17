@@ -32,6 +32,15 @@ public class Configuration : IPluginConfiguration
         Plugin.PluginInterface.SavePluginConfig(this);
     }
     
+    public void ResetToDefaults()
+    {
+        // Keep character data but reset all settings
+        EnabledModules = new();
+        ModuleConfigs = new();
+        UISettings = new();
+        NotificationSettings = new();
+    }
+    
     public void LoadCharacterData(ulong contentId)
     {
         if (!_characterData.ContainsKey(contentId))
@@ -54,27 +63,35 @@ public class Configuration : IPluginConfiguration
 // Settings classes
 public class UISettings
 {
-    public float WindowOpacity { get; set; } = 1.0f;
-    public bool UseCompactMode { get; set; } = false;
-    public bool ShowCategoryHeaders { get; set; } = true;
-    public bool SortByStatus { get; set; } = true;
+    public bool ShowWarningsOnly { get; set; } = false;
+    public bool HideCompleted { get; set; } = false;
     public bool ShowDisabledModules { get; set; } = false;
     public bool HideInCombat { get; set; } = false;
     public bool HideInDuty { get; set; } = false;
     public Vector2 MainWindowSize { get; set; } = new(800, 600);
     public Vector2 MainWindowPosition { get; set; } = new(100, 100);
+    public Dictionary<string, bool> ExpandedSections { get; set; } = new();
 }
 
 public class NotificationSettings
 {
-    public bool EnableChatNotifications { get; set; } = true;
-    public bool EnableToastNotifications { get; set; } = true;
-    public int NotificationThreshold { get; set; } = 90;
+    // Main alert channels
     public bool ChatNotifications { get; set; } = true;
+    public bool EnableToastNotifications { get; set; } = true;
+    public bool EnableSoundAlerts { get; set; } = true;
     public bool SuppressInDuty { get; set; } = true;
+    
+    // Currency alerts
+    public int NotificationThreshold { get; set; } = 90;
     public int NotificationCooldown { get; set; } = 5;
     public bool CurrencyWarningAlerts { get; set; } = true;
+    public int CurrencyAlertSound { get; set; } = 1; // 0=ping, 1=alert, 2=notification, 3=alarm
+    
+    // Task alerts
     public bool TaskCompletionAlerts { get; set; } = true;
+    public int TaskCompleteSound { get; set; } = 0; // 0=ping
+    public bool DailyResetReminder { get; set; } = true;
+    public int DailyResetReminderMinutes { get; set; } = 15;
 }
 
 public class CharacterData

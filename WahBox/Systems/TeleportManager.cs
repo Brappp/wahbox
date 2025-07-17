@@ -1,34 +1,54 @@
 using System;
-using Dalamud.Game.Text;
-using Dalamud.Game.Text.SeStringHandling;
-using FFXIVClientStructs.FFXIV.Client.Game.UI;
+using System.Linq;
+using Dalamud.Plugin.Services;
+using Lumina.Excel.Sheets;
 
 namespace WahBox.Systems;
 
-public unsafe class TeleportManager : IDisposable
+public class TeleportManager : IDisposable
 {
-    public void Teleport(uint aetheryteId)
+    private readonly Plugin _plugin;
+    
+    public TeleportManager()
+    {
+        _plugin = Plugin.Instance;
+    }
+    
+    public void TeleportToAetheryte(uint aetheryteId)
     {
         try
         {
-            Telepo.Instance()->Teleport(aetheryteId, 0);
-            Plugin.ChatGui.Print(new XivChatEntry
+            // Use the teleport command
+            var sheet = Plugin.DataManager.GetExcelSheet<Aetheryte>();
+            if (sheet != null && sheet.TryGetRow(aetheryteId, out var aetheryte))
             {
-                Message = new SeStringBuilder()
-                    .AddUiForeground($"[Wahdori] ", 45)
-                    .AddUiForeground("[Teleport] ", 62)
-                    .AddText($"Teleporting to Aetheryte {aetheryteId}")
-                    .Build(),
-            });
+                var placeName = aetheryte.PlaceName.ValueNullable?.Name.ExtractText();
+                if (!string.IsNullOrEmpty(placeName))
+                {
+                    Plugin.CommandManager.ProcessCommand($"/tp {placeName}");
+                }
+            }
         }
         catch (Exception ex)
         {
-            Plugin.Log.Error($"Failed to teleport: {ex}");
+            Plugin.Log.Error($"Failed to teleport: {ex.Message}");
+        }
+    }
+    
+    public void TeleportToLocation(string locationName)
+    {
+        try
+        {
+            Plugin.CommandManager.ProcessCommand($"/tp {locationName}");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error($"Failed to teleport to {locationName}: {ex.Message}");
         }
     }
     
     public void Dispose()
     {
-        // Nothing to dispose
+        // Cleanup if needed
     }
-} 
+}

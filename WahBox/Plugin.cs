@@ -42,8 +42,7 @@ public sealed class Plugin : IDalamudPlugin
     public Configuration Configuration { get; init; }
 
     public readonly WindowSystem WindowSystem = new("WahBox");
-    private ConfigWindow ConfigWindow { get; init; }
-    private DashboardWindow DashboardWindow { get; init; }
+    private MainWindow MainWindow { get; init; }
 
     public Plugin()
     {
@@ -58,11 +57,8 @@ public sealed class Plugin : IDalamudPlugin
         InitializeSystems();
         
         // Keep the goat image for fun
-        ConfigWindow = new ConfigWindow(this);
-        DashboardWindow = new DashboardWindow(this);
-
-        WindowSystem.AddWindow(ConfigWindow);
-        WindowSystem.AddWindow(DashboardWindow);
+        MainWindow = new MainWindow(this);
+        WindowSystem.AddWindow(MainWindow);
 
         // Register commands
         CommandManager.AddHandler(MainCommand, new CommandInfo(OnMainCommand)
@@ -83,7 +79,7 @@ public sealed class Plugin : IDalamudPlugin
             _ = new TickScheduler(LoadCharacterData);
         }
 
-        Log.Information($"Wahdori v{PluginInterface.Manifest.AssemblyVersion} loaded successfully!");
+        Log.Information($"WahBox v{PluginInterface.Manifest.AssemblyVersion} loaded successfully!");
     }
 
     private void InitializeSystems()
@@ -108,16 +104,24 @@ public sealed class Plugin : IDalamudPlugin
     private void RegisterModules()
     {
         // Currency modules (from CurrencyAlert)
-        // Tomestones - listed individually
+        // Tomestones
         ModuleManager.RegisterModule(new Modules.Currency.PoeticTomestoneModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.AestheticsTomestoneModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.HeliometryTomestoneModule(this));
+        
+        // Grand Company
         ModuleManager.RegisterModule(new Modules.Currency.GrandCompanyModule(this));
+        
+        // Hunt Currencies
         ModuleManager.RegisterModule(new Modules.Currency.AlliedSealsModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.CenturioSealsModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.SackOfNutsModule(this));
+        
+        // PvP
         ModuleManager.RegisterModule(new Modules.Currency.WolfMarksModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.TrophyCrystalsModule(this));
+        
+        // Other Currencies
         ModuleManager.RegisterModule(new Modules.Currency.BicolorGemstonesModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.SkybuildersScripModule(this));
         ModuleManager.RegisterModule(new Modules.Currency.WhiteScripsModule(this));
@@ -218,8 +222,7 @@ public sealed class Plugin : IDalamudPlugin
         // Remove any remaining windows after modules have cleaned up
         WindowSystem.RemoveAllWindows();
 
-        ConfigWindow.Dispose();
-        DashboardWindow.Dispose();
+        MainWindow.Dispose();
 
         CommandManager.RemoveHandler(MainCommand);
         
@@ -257,6 +260,6 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    public void ToggleConfigUI() => ConfigWindow.Toggle();
-    public void ToggleMainUI() => DashboardWindow.Toggle();
+    public void ToggleConfigUI() => MainWindow.Toggle();
+    public void ToggleMainUI() => MainWindow.Toggle();
 }
