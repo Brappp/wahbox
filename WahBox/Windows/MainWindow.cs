@@ -256,7 +256,21 @@ public class MainWindow : Window, IDisposable
                        new Vector4(0.2f, 0.8f, 0.2f, 1);
             
             ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
-            ImGui.ProgressBar(percent / 100f, progressBarSize, $"{current:N0}/{max:N0}");
+            
+            // Draw progress bar without text
+            ImGui.ProgressBar(percent / 100f, progressBarSize, "");
+            
+            // Calculate centered text position
+            var progressBarPos = ImGui.GetItemRectMin();
+            var text = $"{current:N0}/{max:N0}";
+            var textSize = ImGui.CalcTextSize(text);
+            var centeredX = progressBarPos.X + (progressBarSize.X - textSize.X) * 0.5f;
+            var centeredY = progressBarPos.Y + (progressBarSize.Y - textSize.Y) * 0.5f;
+            
+            // Draw centered text on top of progress bar
+            ImGui.GetWindowDrawList().AddText(new Vector2(centeredX, centeredY), 
+                ImGui.GetColorU32(ImGuiCol.Text), text);
+            
             ImGui.PopStyleColor();
             
             // Inline alert threshold settings
