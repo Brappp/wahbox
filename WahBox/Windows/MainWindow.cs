@@ -23,8 +23,8 @@ public class MainWindow : Window, IDisposable
     private enum Tab
     {
         Tracking,
-        Utilities,
         Inventory,
+        Utilities,
         Settings
     }
 
@@ -59,15 +59,15 @@ public class MainWindow : Window, IDisposable
                 ImGui.EndTabItem();
             }
             
-            if (ImGui.BeginTabItem("Utilities"))
-            {
-                _currentTab = Tab.Utilities;
-                ImGui.EndTabItem();
-            }
-            
             if (ImGui.BeginTabItem("Inventory"))
             {
                 _currentTab = Tab.Inventory;
+                ImGui.EndTabItem();
+            }
+            
+            if (ImGui.BeginTabItem("Utilities"))
+            {
+                _currentTab = Tab.Utilities;
                 ImGui.EndTabItem();
             }
             
@@ -370,16 +370,47 @@ public class MainWindow : Window, IDisposable
 
         if (!specialModules.Any()) return;
 
-        if (DrawSectionHeader("Special", "SpecialTasks"))
+        // Handle inventory module specially
+        var inventoryModule = specialModules.FirstOrDefault(m => m.Name == "Inventory Manager");
+        var otherSpecialModules = specialModules.Where(m => m.Name != "Inventory Manager").ToList();
+
+        // Draw inventory module with full interface
+        if (inventoryModule != null)
         {
-            ImGui.Indent();
-            
-            foreach (var module in specialModules)
+            if (DrawSectionHeader("Inventory", "InventorySection"))
             {
-                DrawTaskModule(module);
+                if (inventoryModule is IDrawable drawable)
+                {
+                    drawable.Draw();
+                }
+                else
+                {
+                    ImGui.Indent();
+                    DrawTaskModule(inventoryModule);
+                    ImGui.Unindent();
+                }
             }
             
-            ImGui.Unindent();
+            if (otherSpecialModules.Any())
+            {
+                ImGui.Spacing();
+            }
+        }
+
+        // Draw other special modules in task style
+        if (otherSpecialModules.Any())
+        {
+            if (DrawSectionHeader("Special", "SpecialTasks"))
+            {
+                ImGui.Indent();
+                
+                foreach (var module in otherSpecialModules)
+                {
+                    DrawTaskModule(module);
+                }
+                
+                ImGui.Unindent();
+            }
         }
     }
 
