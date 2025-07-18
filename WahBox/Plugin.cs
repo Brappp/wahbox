@@ -162,6 +162,9 @@ public sealed class Plugin : IDalamudPlugin
         
         // Inventory module
         ModuleManager.RegisterModule(new Modules.Inventory.InventoryManagementModule(this));
+        
+        // Travel Helper module
+        ModuleManager.RegisterModule(new Modules.Travel.TravelHelperModule(this));
     }
     
     private void RegisterEventHandlers()

@@ -25,6 +25,7 @@ public class MainWindow : Window, IDisposable
         Tracking,
         Inventory,
         Utilities,
+        Travel,
         Settings
     }
 
@@ -71,6 +72,12 @@ public class MainWindow : Window, IDisposable
                 ImGui.EndTabItem();
             }
             
+            if (ImGui.BeginTabItem("Travel"))
+            {
+                _currentTab = Tab.Travel;
+                ImGui.EndTabItem();
+            }
+            
             if (ImGui.BeginTabItem("Settings"))
             {
                 _currentTab = Tab.Settings;
@@ -93,6 +100,9 @@ public class MainWindow : Window, IDisposable
                 break;
             case Tab.Inventory:
                 DrawInventoryTab();
+                break;
+            case Tab.Travel:
+                DrawTravelTab();
                 break;
             case Tab.Settings:
                 DrawSettingsTab();
@@ -1226,6 +1236,29 @@ public class MainWindow : Window, IDisposable
         else
         {
             ImGui.Text("Inventory module does not have a drawable interface.");
+        }
+    }
+
+    private void DrawTravelTab()
+    {
+        // Get the travel helper module
+        var travelModule = PluginInstance.ModuleManager.GetModules()
+            .FirstOrDefault(m => m.Name == "Travel Helper");
+
+        if (travelModule == null)
+        {
+            ImGui.Text("Travel Helper module not loaded.");
+            return;
+        }
+
+        // Draw the travel helper interface directly
+        if (travelModule is IDrawable drawable)
+        {
+            drawable.Draw();
+        }
+        else
+        {
+            ImGui.Text("Travel Helper module does not have a drawable interface.");
         }
     }
 
