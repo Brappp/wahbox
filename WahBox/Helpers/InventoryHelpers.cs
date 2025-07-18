@@ -134,17 +134,42 @@ public unsafe class InventoryHelpers
     
     public unsafe void DiscardItem(InventoryItemInfo item)
     {
+        _log.Information($"DiscardItem called for {item.Name} in {item.Container} slot {item.Slot}");
+        
         var inventoryManager = InventoryManager.Instance();
-        if (inventoryManager == null) return;
+        if (inventoryManager == null) 
+        {
+            _log.Error("InventoryManager is null");
+            return;
+        }
         
         var inventory = inventoryManager->GetInventoryContainer(item.Container);
-        if (inventory == null) return;
+        if (inventory == null) 
+        {
+            _log.Error($"Could not get inventory container {item.Container}");
+            return;
+        }
         
-        var slot = inventory->GetInventorySlot(item.Slot);
-        if (slot == null || slot->ItemId != item.ItemId) return;
+        var inventoryItem = inventory->GetInventorySlot(item.Slot);
+        if (inventoryItem == null) 
+        {
+            _log.Error($"Could not get inventory item at slot {item.Slot}");
+            return;
+        }
+        
+        if (inventoryItem->ItemId != item.ItemId) 
+        {
+            _log.Error($"Item mismatch: expected {item.ItemId}, found {inventoryItem->ItemId}");
+            return;
+        }
+        
+        _log.Information($"Calling AgentInventoryContext.DiscardItem for {item.Name}");
         
         // Use AgentInventoryContext to discard the item
-        FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentInventoryContext.Instance()->DiscardItem(slot, item.Container, item.Slot, 0);
+        // The first parameter should be the inventory item pointer, not the slot
+        FFXIVClientStructs.FFXIV.Client.UI.Agent.AgentInventoryContext.Instance()->DiscardItem(inventoryItem, item.Container, item.Slot, 0);
+        
+        _log.Information($"DiscardItem call completed for {item.Name}");
     }
     
     public static bool IsSafeToDiscard(InventoryItemInfo item, HashSet<uint> blacklist)

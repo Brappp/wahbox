@@ -72,7 +72,14 @@ public partial class InventoryManagementModule
             }
             else if (item.MarketPrice.HasValue)
             {
-                ImGui.Text($"{item.MarketPrice.Value:N0}g");
+                if (item.MarketPrice.Value == -1)
+                {
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "N/A");
+                }
+                else
+                {
+                    ImGui.Text($"{item.MarketPrice.Value:N0}g");
+                }
             }
             else
             {
@@ -95,8 +102,15 @@ public partial class InventoryManagementModule
             ImGui.TableNextColumn();
             if (item.MarketPrice.HasValue)
             {
-                var total = item.MarketPrice.Value * item.Quantity;
-                ImGui.Text($"{total:N0}g");
+                if (item.MarketPrice.Value == -1)
+                {
+                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "N/A");
+                }
+                else
+                {
+                    var total = item.MarketPrice.Value * item.Quantity;
+                    ImGui.Text($"{total:N0}g");
+                }
             }
             else
             {

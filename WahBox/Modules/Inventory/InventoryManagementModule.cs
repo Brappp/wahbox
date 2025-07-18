@@ -41,15 +41,19 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     private bool _expandedCategoriesChanged = false;
     private DateTime _lastConfigSave = DateTime.MinValue;
     private readonly TimeSpan _configSaveInterval = TimeSpan.FromSeconds(2);
+    private bool _windowIsOpen = false; // Tracks if window is currently being drawn for price fetch optimization
     
     // UI State
     private List<CategoryGroup> _categories = new();
     private List<InventoryItemInfo> _allItems = new();
+    private List<InventoryItemInfo> _originalItems = new(); // Keep track of original individual items
     private string _searchFilter = string.Empty;
     private Dictionary<uint, bool> ExpandedCategories => Settings.ExpandedCategories;
     private readonly HashSet<uint> _selectedItems = new();
     private readonly Dictionary<uint, (long price, DateTime fetchTime)> _priceCache = new();
     private readonly HashSet<uint> _fetchingPrices = new();
+    private readonly Dictionary<uint, DateTime> _fetchStartTimes = new();
+    private readonly TimeSpan _fetchTimeout = TimeSpan.FromSeconds(30);
     
     // Filter options
     private bool _showInventory = true;
@@ -68,6 +72,8 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     private List<InventoryItemInfo> _itemsToDiscard = new();
     private int _discardProgress = 0;
     private string? _discardError = null;
+    private DateTime _discardStartTime = DateTime.MinValue;
+    private int _confirmRetryCount = 0;
     
     public InventoryManagementModule(Plugin plugin) : base(plugin)
     {
@@ -93,24 +99,39 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             InitializeOnMainThread();
         }
         
-        // Only update prices every few seconds to reduce CPU load
-        if (Settings.AutoRefreshPrices && !_isDiscarding && DateTime.Now - _lastRefresh > _refreshInterval)
+        // Update task manager to process queued discard tasks
+        // Note: TaskManager.Update() is automatically called by ECommons framework
+        
+        // Clean up stuck price fetches
+        CleanupStuckFetches();
+        
+        // Only update prices when window is open and every few seconds to reduce CPU load
+        if (_windowIsOpen && Settings.AutoRefreshPrices && !_isDiscarding && DateTime.Now - _lastRefresh > _refreshInterval)
         {
             _lastRefresh = DateTime.Now;
             
-            var stalePrices = _allItems.Where(item => 
+            // Only fetch prices for currently visible (not filtered out) items
+            var visibleItems = GetVisibleItems();
+            var stalePrices = visibleItems.Where(item => 
                 item.CanBeTraded && // Only check prices for tradable items
                 !_fetchingPrices.Contains(item.ItemId) &&
                 (!_priceCache.TryGetValue(item.ItemId, out var cached) || 
                  DateTime.Now - cached.fetchTime > TimeSpan.FromMinutes(Settings.PriceCacheDurationMinutes)))
-                .Take(10) // Increased from 5 to 10 for faster price fetching
+                .Take(5) // Reduced back to 5 since we're only fetching visible items now
                 .ToList();
                 
-            foreach (var item in stalePrices)
+            // Only fetch if there are visible items that need pricing
+            if (stalePrices.Count > 0)
             {
-                _ = FetchMarketPrice(item);
+                foreach (var item in stalePrices)
+                {
+                    _ = FetchMarketPrice(item);
+                }
             }
         }
+        
+        // Mark window as closed when not actively drawing
+        _windowIsOpen = false;
         
         // Save config periodically if needed
         if (_expandedCategoriesChanged && DateTime.Now - _lastConfigSave > _configSaveInterval)
@@ -123,6 +144,9 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     
     public void Draw()
     {
+        // Mark window as open for price fetching optimization
+        _windowIsOpen = true;
+        
         // Ensure initialization before drawing
         if (!_initialized)
         {
@@ -489,7 +513,8 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     
     private void RefreshInventory()
     {
-        _allItems = _inventoryHelpers.GetAllItems(_showArmory, false); // Always false for saddlebag
+        _originalItems = _inventoryHelpers.GetAllItems(_showArmory, false); // Always false for saddlebag
+        _allItems = _originalItems; // For compatibility, keep _allItems pointing to the same list
         
         // Update market prices from cache
         foreach (var item in _allItems)
@@ -572,12 +597,62 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             .ToList();
     }
     
+    private List<InventoryItemInfo> GetVisibleItems()
+    {
+        // Return items that are currently visible based on applied filters
+        // This is the same logic as UpdateCategories but just returns the filtered items
+        var filteredItems = _allItems.AsEnumerable();
+        
+        // Apply text search filter
+        if (!string.IsNullOrWhiteSpace(_searchFilter))
+        {
+            filteredItems = filteredItems.Where(i => i.Name.Contains(_searchFilter, StringComparison.OrdinalIgnoreCase));
+        }
+        
+        // Apply item filters
+        if (_showOnlyHQ)
+        {
+            filteredItems = filteredItems.Where(i => i.IsHQ);
+        }
+        
+        if (_showOnlyDiscardable)
+        {
+            filteredItems = filteredItems.Where(i => InventoryHelpers.IsSafeToDiscard(i, Settings.BlacklistedItems));
+        }
+        
+        return filteredItems.ToList();
+    }
+    
+    private void CleanupStuckFetches()
+    {
+        var stuckItems = _fetchStartTimes.Where(kvp => 
+            DateTime.Now - kvp.Value > _fetchTimeout).Select(kvp => kvp.Key).ToList();
+        
+        foreach (var stuckItem in stuckItems)
+        {
+            _fetchingPrices.Remove(stuckItem);
+            _fetchStartTimes.Remove(stuckItem);
+            
+            // Find the stuck item and mark it as failed (N/A)
+            var stuckItemInfo = _allItems.FirstOrDefault(i => i.ItemId == stuckItem);
+            if (stuckItemInfo != null)
+            {
+                stuckItemInfo.MarketPriceLoading = false;
+                stuckItemInfo.MarketPrice = -1; // Use -1 to indicate "N/A" state
+                _priceCache[stuckItem] = (-1, DateTime.Now); // Cache the N/A result
+            }
+            
+            Plugin.Log.Warning($"Cleaned up stuck price fetch for item {stuckItem}");
+        }
+    }
+
     private async Task FetchMarketPrice(InventoryItemInfo item)
     {
         if (_fetchingPrices.Contains(item.ItemId)) return;
         if (!item.CanBeTraded) return; // Skip untradable items
         
         _fetchingPrices.Add(item.ItemId);
+        _fetchStartTimes[item.ItemId] = DateTime.Now;
         item.MarketPriceLoading = true;
         
         try
@@ -590,40 +665,75 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
                 item.MarketPriceFetchTime = DateTime.Now;
                 _priceCache[item.ItemId] = (result.Price, DateTime.Now);
             }
+            else
+            {
+                // No price data available - mark as N/A
+                item.MarketPrice = -1;
+                _priceCache[item.ItemId] = (-1, DateTime.Now);
+            }
         }
         catch (Exception ex)
         {
             Plugin.Log.Error(ex, $"Failed to fetch price for {item.Name}");
+            // Mark as N/A on error
+            item.MarketPrice = -1;
+            _priceCache[item.ItemId] = (-1, DateTime.Now);
         }
         finally
         {
             _fetchingPrices.Remove(item.ItemId);
+            _fetchStartTimes.Remove(item.ItemId);
             item.MarketPriceLoading = false;
         }
     }
     
     private void PrepareDiscard()
     {
-        _itemsToDiscard = _allItems
-            .Where(i => i.IsSelected && InventoryHelpers.IsSafeToDiscard(i, Settings.BlacklistedItems))
-            .ToList();
-            
+        Plugin.Log.Information($"PrepareDiscard called. Selected items count: {_selectedItems.Count}");
+        
+        // Get the actual individual items from inventory, not the grouped/combined ones
+        var actualItemsToDiscard = new List<InventoryItemInfo>();
+        
+        foreach (var selectedItemId in _selectedItems)
+        {
+            // Find all actual inventory instances of this item ID from the original items
+            var actualItems = _originalItems.Where(i => 
+                i.ItemId == selectedItemId && 
+                InventoryHelpers.IsSafeToDiscard(i, Settings.BlacklistedItems)).ToList();
+                
+            Plugin.Log.Information($"Found {actualItems.Count} instances of item {selectedItemId} to discard");
+            actualItemsToDiscard.AddRange(actualItems);
+        }
+        
+        _itemsToDiscard = actualItemsToDiscard;
+        Plugin.Log.Information($"Items to discard after filtering: {_itemsToDiscard.Count}");
+        
         if (_itemsToDiscard.Count > 0)
         {
             _isDiscarding = true;
             _discardProgress = 0;
             _discardError = null;
+            Plugin.Log.Information("Discard preparation successful, showing confirmation dialog");
+        }
+        else
+        {
+            Plugin.Log.Warning("No items to discard after filtering");
+            Plugin.ChatGui.PrintError("No items selected for discard or all selected items cannot be safely discarded.");
         }
     }
     
     private void StartDiscarding()
     {
+        Plugin.Log.Information($"StartDiscarding called. Items to discard: {_itemsToDiscard.Count}");
         _taskManager.Abort();
         _taskManager.Enqueue(() => DiscardNextItem());
+        Plugin.Log.Information("Discard task enqueued");
     }
     
     private unsafe void DiscardNextItem()
     {
+        Plugin.Log.Information($"DiscardNextItem called. Progress: {_discardProgress}/{_itemsToDiscard.Count}");
+        
         if (_discardProgress >= _itemsToDiscard.Count)
         {
             Plugin.ChatGui.Print("Finished discarding items.");
@@ -632,11 +742,17 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         }
         
         var item = _itemsToDiscard[_discardProgress];
+        Plugin.Log.Information($"Attempting to discard item: {item.Name} (ID: {item.ItemId})");
         
         try
         {
             _inventoryHelpers.DiscardItem(item);
             _discardProgress++;
+            Plugin.Log.Information($"Discard call completed for {item.Name}");
+            
+            // Reset confirmation state for this item
+            _confirmRetryCount = 0;
+            _discardStartTime = DateTime.Now;
             
             _taskManager.EnqueueDelay(500);
             _taskManager.Enqueue(() => ConfirmDiscard());
@@ -650,24 +766,85 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     
     private unsafe void ConfirmDiscard()
     {
+        Plugin.Log.Information($"ConfirmDiscard called, looking for dialog (retry {_confirmRetryCount})");
+        
+        // Check for timeout
+        if (DateTime.Now - _discardStartTime > TimeSpan.FromSeconds(15))
+        {
+            Plugin.Log.Warning("Discard confirmation timed out");
+            _discardError = "Discard confirmation timed out";
+            CancelDiscard();
+            return;
+        }
+        
         var addon = GetDiscardAddon();
         if (addon != null)
         {
-            // Click Yes
-            var yesButton = addon->UldManager.NodeList[1]->GetAsAtkComponentButton();
-            if (yesButton != null)
-            {
-                yesButton->AtkComponentBase.SetEnabledState(true);
-                addon->FireCallbackInt(0);
-            }
+            Plugin.Log.Information("Found discard dialog, clicking Yes");
             
-            _taskManager.EnqueueDelay(500);
-            _taskManager.Enqueue(() => DiscardNextItem());
+            // Get the Yes button (should be YesButton like in ARDiscard)
+            var selectYesno = (FFXIVClientStructs.FFXIV.Client.UI.AddonSelectYesno*)addon;
+            if (selectYesno->YesButton != null)
+            {
+                Plugin.Log.Information("Yes button found, enabling and clicking");
+                selectYesno->YesButton->AtkComponentBase.SetEnabledState(true);
+                addon->FireCallbackInt(0);
+                
+                Plugin.Log.Information("Yes button clicked, waiting for response");
+                _confirmRetryCount = 0; // Reset retry count
+                _taskManager.EnqueueDelay(500);
+                _taskManager.Enqueue(() => WaitForDiscardComplete());
+            }
+            else
+            {
+                Plugin.Log.Warning("Yes button not found in dialog");
+                _confirmRetryCount++;
+                if (_confirmRetryCount > 10)
+                {
+                    Plugin.Log.Error("Too many retries trying to find Yes button");
+                    _discardError = "Could not find Yes button in dialog";
+                    CancelDiscard();
+                    return;
+                }
+                _taskManager.EnqueueDelay(100);
+                _taskManager.Enqueue(() => ConfirmDiscard());
+            }
         }
         else
         {
-            // No dialog, continue
+            _confirmRetryCount++;
+            if (_confirmRetryCount > 50) // 5 seconds total
+            {
+                Plugin.Log.Warning("No discard dialog found after many retries, assuming no confirmation needed");
+                _confirmRetryCount = 0;
+                _taskManager.EnqueueDelay(200);
+                _taskManager.Enqueue(() => DiscardNextItem());
+            }
+            else
+            {
+                Plugin.Log.Information("No discard dialog found yet, retrying");
+                _taskManager.EnqueueDelay(100);
+                _taskManager.Enqueue(() => ConfirmDiscard());
+            }
+        }
+    }
+    
+    private unsafe void WaitForDiscardComplete()
+    {
+        Plugin.Log.Information("WaitForDiscardComplete called");
+        
+        // Check if dialog is still visible
+        var addon = GetDiscardAddon();
+        if (addon != null)
+        {
+            Plugin.Log.Information("Dialog still visible, waiting longer");
             _taskManager.EnqueueDelay(100);
+            _taskManager.Enqueue(() => WaitForDiscardComplete());
+        }
+        else
+        {
+            Plugin.Log.Information("Dialog dismissed, continuing to next item");
+            _taskManager.EnqueueDelay(200);
             _taskManager.Enqueue(() => DiscardNextItem());
         }
     }
@@ -679,25 +856,34 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             try
             {
                 var addon = (AtkUnitBase*)Plugin.GameGui.GetAddonByName("SelectYesno", i);
-                if (addon == null || !addon->IsVisible) continue;
+                if (addon == null) return null;
                 
-                // Check if it's a discard dialog
-                var textNode = addon->UldManager.NodeList[15]->GetAsAtkTextNode();
-                if (textNode != null)
+                if (addon->IsVisible && addon->UldManager.LoadedState == FFXIVClientStructs.FFXIV.Component.GUI.AtkLoadState.Loaded)
                 {
-                    var text = Dalamud.Memory.MemoryHelper.ReadSeString(&textNode->NodeText).TextValue;
-                    if (text.Contains("Discard", StringComparison.OrdinalIgnoreCase))
+                    // Check if it's a discard dialog
+                    var textNode = addon->UldManager.NodeList[15]->GetAsAtkTextNode();
+                    if (textNode != null)
                     {
-                        return addon;
+                        var text = Dalamud.Memory.MemoryHelper.ReadSeString(&textNode->NodeText).TextValue;
+                        Plugin.Log.Information($"YesNo dialog text: {text}");
+                        
+                        if (text.Contains("Discard", StringComparison.OrdinalIgnoreCase) || 
+                            text.Contains("discard", StringComparison.OrdinalIgnoreCase))
+                        {
+                            Plugin.Log.Information("Found discard confirmation dialog");
+                            return addon;
+                        }
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore
+                Plugin.Log.Warning(ex, $"Error checking addon {i}");
+                return null;
             }
         }
         
+        Plugin.Log.Information("No discard dialog found");
         return null;
     }
     
@@ -708,6 +894,8 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         _itemsToDiscard.Clear();
         _discardProgress = 0;
         _discardError = null;
+        _confirmRetryCount = 0;
+        _discardStartTime = DateTime.MinValue;
         
         // Refresh inventory after discard
         RefreshInventory();
@@ -750,6 +938,11 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         {
             Plugin.Configuration.Save();
         }
+        
+        // Clean up any pending fetches
+        _fetchingPrices.Clear();
+        _fetchStartTimes.Clear();
+        _windowIsOpen = false;
         
         _iconCache?.Dispose();
         _taskManager?.Dispose();
