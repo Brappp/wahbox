@@ -5,7 +5,7 @@ using ImGuiNET;
 
 namespace WahBox.Modules.Daily;
 
-public class DailyHuntBillsModule : BaseModule
+public class DailyHuntBillsModule : BaseModule, IProgressModule
 {
     public override string Name => "Daily Hunt Bills";
     public override ModuleType Type => ModuleType.Daily;
@@ -13,6 +13,11 @@ public class DailyHuntBillsModule : BaseModule
     private DateTime _nextReset;
     private int _current = 0;
     private int _maximum = 3;
+    
+    // Expose progress for UI
+    public int Current => _current;
+    public int Maximum => _maximum;
+    public float Progress => _maximum > 0 ? (float)_current / _maximum : 0f;
 
     public DailyHuntBillsModule(Plugin plugin) : base(plugin)
     {
@@ -102,6 +107,8 @@ public class DailyHuntBillsModule : BaseModule
 
     public override void DrawStatus()
     {
+        // Status is now drawn by the main window using progress bars
+        // This method is kept for compatibility but no longer used in the tracking tab
         var color = Status switch
         {
             ModuleStatus.Complete => new System.Numerics.Vector4(0, 1, 0, 1),
@@ -109,6 +116,6 @@ public class DailyHuntBillsModule : BaseModule
             _ => new System.Numerics.Vector4(1, 1, 1, 1)
         };
 
-        ImGui.TextColored(color, $"{Name}: {_current}/{_maximum}");
+        ImGui.TextColored(color, $"{_current}/{_maximum}");
     }
 }

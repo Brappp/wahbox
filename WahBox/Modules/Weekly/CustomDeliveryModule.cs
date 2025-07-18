@@ -6,7 +6,7 @@ using FFXIVClientStructs.FFXIV.Client.Game;
 
 namespace WahBox.Modules.Weekly;
 
-public class CustomDeliveryModule : BaseModule
+public class CustomDeliveryModule : BaseModule, IProgressModule, IDetailedStatus
 {
     public override string Name => "Custom Deliveries";
     public override ModuleType Type => ModuleType.Weekly;
@@ -14,6 +14,11 @@ public class CustomDeliveryModule : BaseModule
     private const int MaxWeeklyAllowances = 12;
     private int _remainingAllowances = MaxWeeklyAllowances;
     private DateTime _nextReset;
+    
+    // IProgressModule implementation
+    public int Current => MaxWeeklyAllowances - _remainingAllowances; // Used allowances
+    public int Maximum => MaxWeeklyAllowances;
+    public float Progress => Maximum > 0 ? (float)Current / Maximum : 0f;
     
     // Comparison modes for flexible tracking
     public enum ComparisonMode
@@ -122,6 +127,8 @@ public class CustomDeliveryModule : BaseModule
 
     public override void DrawStatus()
     {
+        // Status is now drawn by the main window using progress bars
+        // This method is kept for compatibility but no longer used in the tracking tab
         var color = Status switch
         {
             ModuleStatus.Complete => new System.Numerics.Vector4(0, 1, 0, 1),
@@ -129,6 +136,11 @@ public class CustomDeliveryModule : BaseModule
             _ => new System.Numerics.Vector4(1, 1, 1, 1)
         };
 
-        ImGui.TextColored(color, $"Custom Deliveries: {_remainingAllowances}/{MaxWeeklyAllowances} allowances");
+        ImGui.TextColored(color, $"{_remainingAllowances}/{MaxWeeklyAllowances} allowances");
+    }
+    
+    public string GetDetailedStatus()
+    {
+        return $"{_remainingAllowances} allowances left";
     }
 } 

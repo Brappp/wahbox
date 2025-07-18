@@ -8,7 +8,7 @@ using Lumina.Excel.Sheets;
 
 namespace WahBox.Modules.Daily;
 
-public class DutyRouletteModule : BaseModule
+public class DutyRouletteModule : BaseModule, IProgressModule, IDetailedStatus
 {
     public override string Name => "Duty Roulette";
     public override ModuleType Type => ModuleType.Daily;
@@ -20,6 +20,11 @@ public class DutyRouletteModule : BaseModule
 
     private readonly Dictionary<uint, RouletteInfo> _roulettes = new();
     private DateTime _nextReset;
+    
+    // IProgressModule implementation
+    public int Current => _roulettes.Values.Where(r => r.IsTracked && r.IsCompleted).Count();
+    public int Maximum => _roulettes.Values.Count(r => r.IsTracked);
+    public float Progress => Maximum > 0 ? (float)Current / Maximum : 0f;
 
     public class RouletteInfo
     {
@@ -147,6 +152,8 @@ public class DutyRouletteModule : BaseModule
 
     public override void DrawStatus()
     {
+        // Status is now drawn by the main window using progress bars
+        // This method is kept for compatibility but no longer used in the tracking tab
         ImGui.TextUnformatted("Duty Roulettes:");
         
         foreach (var roulette in _roulettes.Values.Where(r => r.IsTracked).OrderBy(r => r.Id))
@@ -157,5 +164,21 @@ public class DutyRouletteModule : BaseModule
                 
             ImGui.TextColored(color, $"  {(roulette.IsCompleted ? "✓" : "○")} {roulette.Name}");
         }
+    }
+    
+    public string GetDetailedStatus()
+    {
+        // Show first incomplete roulette or a summary
+        var incomplete = _roulettes.Values
+            .Where(r => r.IsTracked && !r.IsCompleted)
+            .OrderBy(r => r.Id)
+            .FirstOrDefault();
+            
+        if (incomplete != null)
+        {
+            return $"Next: {incomplete.Name}";
+        }
+        
+        return "All complete!";
     }
 } 

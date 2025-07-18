@@ -272,6 +272,22 @@ public class MainWindow : Window, IDisposable
                 ImGui.GetColorU32(ImGuiCol.Text), text);
             
             ImGui.PopStyleColor();
+        
+        // Show tooltip with full status on hover over progress bar
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            module.DrawStatus();
+            ImGui.EndTooltip();
+        }
+        
+        // Show tooltip with full status on hover over progress bar
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            module.DrawStatus();
+            ImGui.EndTooltip();
+        }
             
             // Inline alert threshold settings
             ImGui.SameLine();
@@ -328,6 +344,8 @@ public class MainWindow : Window, IDisposable
 
         if (!dailyModules.Any()) return;
 
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(5, 5));
+        
         var timeUntilReset = GetTimeUntilDailyReset();
         var headerText = $"Daily Tasks - Reset: {FormatTimeSpan(timeUntilReset)}";
         
@@ -342,6 +360,8 @@ public class MainWindow : Window, IDisposable
             
             ImGui.Unindent();
         }
+        
+        ImGui.PopStyleVar();
     }
 
     private void DrawWeeklyTasksSection()
@@ -356,6 +376,8 @@ public class MainWindow : Window, IDisposable
 
         if (!weeklyModules.Any()) return;
 
+        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(5, 5));
+        
         var timeUntilReset = GetTimeUntilWeeklyReset();
         var headerText = $"Weekly Tasks - Reset: {FormatTimeSpan(timeUntilReset)}";
         
@@ -370,6 +392,8 @@ public class MainWindow : Window, IDisposable
             
             ImGui.Unindent();
         }
+        
+        ImGui.PopStyleVar();
     }
 
     private void DrawSpecialTasksSection()
@@ -411,6 +435,24 @@ public class MainWindow : Window, IDisposable
         // Module row
         ImGui.BeginGroup();
         
+        // Icon and name (similar to currency modules)
+        if (module.IconId > 0)
+        {
+            try
+            {
+                var icon = Plugin.TextureProvider.GetFromGameIcon(module.IconId).GetWrapOrEmpty();
+                if (icon != null && icon.ImGuiHandle != IntPtr.Zero)
+                {
+                    ImGui.Image(icon.ImGuiHandle, new Vector2(20, 20));
+                    ImGui.SameLine();
+                }
+            }
+            catch
+            {
+                // Skip broken icons gracefully
+            }
+        }
+        
         // Enable checkbox
         var enabled = module.IsEnabled;
         if (ImGui.Checkbox($"##{module.Name}_enable", ref enabled))
@@ -420,23 +462,74 @@ public class MainWindow : Window, IDisposable
         }
         
         ImGui.SameLine();
-        
-        // Status icon
-        var statusIcon = GetStatusIcon(module.Status);
-        ImGui.Text(statusIcon);
-        
-        ImGui.SameLine();
         ImGui.Text(module.Name);
         
-        // Module-specific status
+        // Enhanced task display with progress bars (matching currency style)
         ImGui.SameLine(300);
-        module.DrawStatus();
         
-        // Action buttons
+        if (module is IProgressModule progressModule)
+        {
+            // Draw progress bar like currency modules
+            var current = progressModule.Current;
+            var max = progressModule.Maximum;
+            var percent = progressModule.Progress;
+            
+            var progressBarSize = new Vector2(150, 20);
+            var color = percent >= 1.0f ? new Vector4(0.2f, 0.8f, 0.2f, 1) : // Complete - Green
+                       percent > 0 ? new Vector4(0.8f, 0.8f, 0.2f, 1) :      // In Progress - Yellow
+                       new Vector4(0.5f, 0.5f, 0.5f, 1);                     // Not Started - Gray
+            
+            ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
+            
+            // Draw progress bar without text
+            ImGui.ProgressBar(percent, progressBarSize, "");
+            
+            // Calculate centered text position
+            var progressBarPos = ImGui.GetItemRectMin();
+            var text = $"{current}/{max}";
+            var textSize = ImGui.CalcTextSize(text);
+            var centeredX = progressBarPos.X + (progressBarSize.X - textSize.X) * 0.5f;
+            var centeredY = progressBarPos.Y + (progressBarSize.Y - textSize.Y) * 0.5f;
+            
+            // Draw centered text on top of progress bar
+            ImGui.GetWindowDrawList().AddText(new Vector2(centeredX, centeredY), 
+                ImGui.GetColorU32(ImGuiCol.Text), text);
+            
+            ImGui.PopStyleColor();
+            
+            // Show tooltip with full status on hover over progress bar
+            if (ImGui.IsItemHovered())
+            {
+                ImGui.BeginTooltip();
+                module.DrawStatus();
+                ImGui.EndTooltip();
+            }
+            
+            // Show detailed status if available
+            if (module is IDetailedStatus detailedStatus)
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), detailedStatus.GetDetailedStatus());
+            }
+        }
+        else
+        {
+            // Fallback for non-progress modules - use status-based progress bar
+            DrawTaskStatusBar(module);
+            
+            // Show detailed status if available
+            if (module is IDetailedStatus detailedStatus)
+            {
+                ImGui.SameLine();
+                ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), detailedStatus.GetDetailedStatus());
+            }
+        }
+        
+        // Action buttons (matching currency style)
         if (module.HasWindow)
         {
-            ImGui.SameLine(ImGui.GetContentRegionMax().X - 50);
-            if (ImGui.SmallButton("Open"))
+            ImGui.SameLine();
+            if (ImGui.SmallButton($"Details##{module.Name}"))
             {
                 module.OpenWindow();
             }
@@ -445,6 +538,56 @@ public class MainWindow : Window, IDisposable
         ImGui.EndGroup();
         
         ImGui.PopID();
+    }
+    
+    private void DrawTaskStatusBar(IModule module)
+    {
+        var progressBarSize = new Vector2(150, 20);
+        float progress = 0f;
+        string text = "";
+        Vector4 color;
+        
+        switch (module.Status)
+        {
+            case ModuleStatus.Complete:
+                progress = 1.0f;
+                text = "Complete";
+                color = new Vector4(0.2f, 0.8f, 0.2f, 1); // Green
+                break;
+                
+            case ModuleStatus.InProgress:
+                progress = 0.5f;
+                text = "In Progress";
+                color = new Vector4(0.8f, 0.8f, 0.2f, 1); // Yellow
+                break;
+                
+            case ModuleStatus.Incomplete:
+                progress = 0f;
+                text = "Not Started";
+                color = new Vector4(0.5f, 0.5f, 0.5f, 1); // Gray
+                break;
+                
+            default:
+                progress = 0f;
+                text = "Unknown";
+                color = new Vector4(0.7f, 0.7f, 0.7f, 1);
+                break;
+        }
+        
+        ImGui.PushStyleColor(ImGuiCol.PlotHistogram, color);
+        ImGui.ProgressBar(progress, progressBarSize, "");
+        
+        // Calculate centered text position
+        var progressBarPos = ImGui.GetItemRectMin();
+        var textSize = ImGui.CalcTextSize(text);
+        var centeredX = progressBarPos.X + (progressBarSize.X - textSize.X) * 0.5f;
+        var centeredY = progressBarPos.Y + (progressBarSize.Y - textSize.Y) * 0.5f;
+        
+        // Draw centered text on top of progress bar
+        ImGui.GetWindowDrawList().AddText(new Vector2(centeredX, centeredY), 
+            ImGui.GetColorU32(ImGuiCol.Text), text);
+        
+        ImGui.PopStyleColor();
     }
 
     private void DrawUtilitiesTab()

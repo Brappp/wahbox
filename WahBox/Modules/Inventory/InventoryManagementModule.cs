@@ -163,18 +163,15 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         // Top row: Search and controls
         DrawTopControls();
         
-        // Filter and settings sections
+        // Filter and settings sections  
         DrawFiltersAndSettings();
-        
-        // Action buttons
-        DrawActionButtons();
         
         ImGui.Separator();
         
         // Main content area with tabs
         ImGui.BeginChild("InventoryContent", new Vector2(0, 0), false);
         
-        // Tab bar for Not Filtered vs Filtered Items
+        // Tab bar for Not Filtered vs Filtered Items with inline action buttons
         if (ImGui.BeginTabBar("InventoryTabs"))
         {
             // Calculate filtered items count for tab display
@@ -194,6 +191,45 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             {
                 DrawFilteredItemsTab(filteredItems);
                 ImGui.EndTabItem();
+            }
+            
+            // Action buttons on the right side of tab bar
+            ImGui.SameLine();
+            var availableWidth = ImGui.GetContentRegionAvail().X;
+            var buttonWidth = 80f;
+            var spacing = ImGui.GetStyle().ItemSpacing.X;
+            var totalButtonWidth = buttonWidth * 2 + spacing;
+            
+            if (availableWidth > totalButtonWidth + 20)
+            {
+                ImGui.SetCursorPosX(ImGui.GetCursorPosX() + availableWidth - totalButtonWidth);
+                
+                if (ImGui.Button("Clear", new Vector2(buttonWidth, 0)))
+                {
+                    _selectedItems.Clear();
+                    foreach (var item in _allItems)
+                    {
+                        item.IsSelected = false;
+                    }
+                }
+                
+                ImGui.SameLine();
+                
+                if (_selectedItems.Count > 0)
+                {
+                    ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.8f, 0.2f, 0.2f, 1));
+                    if (ImGui.Button($"Discard ({_selectedItems.Count})", new Vector2(buttonWidth, 0)))
+                    {
+                        PrepareDiscard();
+                    }
+                    ImGui.PopStyleColor();
+                }
+                else
+                {
+                    ImGui.BeginDisabled();
+                    ImGui.Button("Discard (0)", new Vector2(buttonWidth, 0));
+                    ImGui.EndDisabled();
+                }
             }
             
             ImGui.EndTabBar();
@@ -1111,10 +1147,9 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         var availableWidth = ImGui.GetContentRegionAvail().X;
         var spacing = ImGui.GetStyle().ItemSpacing.X;
         
-        // Search bar - responsive width
-        var searchWidth = Math.Min(300f, availableWidth * 0.4f);
-        ImGui.SetNextItemWidth(searchWidth);
-        if (ImGui.InputTextWithHint("##Search", "Search items...", ref _searchFilter, 100))
+        // Compact search bar
+        ImGui.SetNextItemWidth(200f);
+        if (ImGui.InputTextWithHint("##Search", "Search...", ref _searchFilter, 100))
         {
             _lastCategoryUpdate = DateTime.Now;
         }
@@ -1126,100 +1161,245 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             _lastCategoryUpdate = DateTime.MinValue;
         }
         
-        // Refresh button
-        var refreshWidth = ImGui.CalcTextSize("Refresh").X + ImGui.GetStyle().FramePadding.X * 2;
-        if (availableWidth > searchWidth + refreshWidth + spacing * 2)
-        {
-            ImGui.SameLine();
-        }
+        ImGui.SameLine();
         if (ImGui.Button("Refresh"))
         {
             RefreshInventory();
         }
         
-        // Stats text - wrap if needed
-        var statsText = $"Total Items: {_allItems.Count} | Selected: {_selectedItems.Count}";
-        var statsWidth = ImGui.CalcTextSize(statsText).X;
+        // Core filters on same line
+        ImGui.SameLine();
+        ImGui.Text("|");
         
-        if (availableWidth > searchWidth + refreshWidth + statsWidth + spacing * 3)
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Armory", ref _showArmory)) 
         {
-            ImGui.SameLine();
+            RefreshInventory();
         }
-        ImGui.Text(statsText);
+        
+        ImGui.SameLine();
+        if (ImGui.Checkbox("HQ Only", ref _showOnlyHQ)) UpdateCategories();
+        
+        ImGui.SameLine();
+        if (ImGui.Checkbox("Flagged", ref _showOnlyFlagged)) UpdateCategories();
+        
+        // Just show item counts inline with the controls
+        ImGui.SameLine();
+        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), $"({_allItems.Count} items, {_selectedItems.Count} selected)");
     }
     
     private void DrawFiltersAndSettings()
     {
         ImGui.Separator();
         
-        var availableWidth = ImGui.GetContentRegionAvail().X;
+        // Safety Filters in a compact grid
+        ImGui.Text("Safety Filters:");
+        ImGui.SameLine();
+        DrawCompactSafetyFilters();
         
-        // Compact top row with essential filters
-        DrawCompactFilterRow();
-        
-        // Expandable settings sections
-        ImGui.Spacing();
-        if (ImGui.CollapsingHeader("Advanced Filters & Settings"))
+        // Market price settings on one line if enabled
+        if (Settings.ShowMarketPrices)
         {
-            ImGui.Indent();
-            
-            // Tabbed interface for better organization
-            if (ImGui.BeginTabBar("FilterTabs", ImGuiTabBarFlags.NoCloseWithMiddleMouseButton))
+            DrawCompactMarketSettings();
+        }
+        else
+        {
+            var showPrices = Settings.ShowMarketPrices;
+            if (ImGui.Checkbox("Show Market Prices", ref showPrices))
             {
-                if (ImGui.BeginTabItem("Safety"))
-                {
-                    DrawSafetyFiltersCompact();
-                    ImGui.EndTabItem();
-                }
-                
-                if (ImGui.BeginTabItem("Market Prices"))
-                {
-                    DrawMarketPriceSettings(availableWidth);
-                    ImGui.EndTabItem();
-                }
-                
-                ImGui.EndTabBar();
+                Settings.ShowMarketPrices = showPrices;
+                Plugin.Configuration.Save();
             }
-            
-            ImGui.Unindent();
         }
     }
     
-    private void DrawCompactFilterRow()
+    private void DrawCompactSafetyFilters()
     {
-        // Essential filters in a compact single row
-        ImGui.AlignTextToFramePadding();
-        ImGui.Text("Show:");
+        var filters = Settings.SafetyFilters;
+        bool changed = false;
         
-        ImGui.SameLine();
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.9f, 0.9f, 0.9f, 1));
-        ImGui.Text("Inventory");
-        ImGui.PopStyleColor();
+        // Show active filter count
+        var activeCount = 0;
+        if (filters.FilterUltimateTokens) activeCount++;
+        if (filters.FilterCurrencyItems) activeCount++;
+        if (filters.FilterCrystalsAndShards) activeCount++;
+        if (filters.FilterGearsetItems) activeCount++;
+        if (filters.FilterIndisposableItems) activeCount++;
+        if (filters.FilterHighLevelGear) activeCount++;
+        if (filters.FilterUniqueUntradeable) activeCount++;
+        if (filters.FilterHQItems) activeCount++;
+        if (filters.FilterCollectables) activeCount++;
         
+        ImGui.TextColored(new Vector4(0.7f, 0.7f, 0.7f, 1), $"({activeCount}/9 active)");
         ImGui.SameLine();
-        if (ImGui.Checkbox("+ Armory", ref _showArmory)) 
+        
+        // Draw filters in a compact 3-column layout
+        ImGui.BeginGroup();
+        
+        // Column 1
+        var filterUltimate = filters.FilterUltimateTokens;
+        if (ImGui.Checkbox("##UltimateTokens", ref filterUltimate))
         {
+            filters.FilterUltimateTokens = filterUltimate;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Ultimate Tokens: Raid tokens, preorder items");
+        ImGui.SameLine();
+        ImGui.Text("Ultimate");
+        
+        ImGui.SameLine(150);
+        var filterCrystals = filters.FilterCrystalsAndShards;
+        if (ImGui.Checkbox("##Crystals", ref filterCrystals))
+        {
+            filters.FilterCrystalsAndShards = filterCrystals;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Crystals & Shards: Crafting materials");
+        ImGui.SameLine();
+        ImGui.Text("Crystals");
+        
+        ImGui.SameLine(300);
+        var filterGearset = filters.FilterGearsetItems;
+        if (ImGui.Checkbox("##Gearset", ref filterGearset))
+        {
+            filters.FilterGearsetItems = filterGearset;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Gearset Items: Equipment in any gearset");
+        ImGui.SameLine();
+        ImGui.Text("Gearsets");
+        
+        // Column 2
+        var filterCurrency = filters.FilterCurrencyItems;
+        if (ImGui.Checkbox("##Currency", ref filterCurrency))
+        {
+            filters.FilterCurrencyItems = filterCurrency;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Currency: Gil, tomestones, MGP, etc.");
+        ImGui.SameLine();
+        ImGui.Text("Currency");
+        
+        ImGui.SameLine(150);
+        var filterHighLevel = filters.FilterHighLevelGear;
+        if (ImGui.Checkbox("##HighLevel", ref filterHighLevel))
+        {
+            filters.FilterHighLevelGear = filterHighLevel;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip($"High Level Gear: i{filters.MaxGearItemLevel}+");
+        ImGui.SameLine();
+        ImGui.Text("High Lvl");
+        
+        ImGui.SameLine(300);
+        var filterUnique = filters.FilterUniqueUntradeable;
+        if (ImGui.Checkbox("##Unique", ref filterUnique))
+        {
+            filters.FilterUniqueUntradeable = filterUnique;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Unique & Untradeable: Cannot be reacquired");
+        ImGui.SameLine();
+        ImGui.Text("Unique");
+        
+        // Column 3
+        var filterHQ = filters.FilterHQItems;
+        if (ImGui.Checkbox("##HQ", ref filterHQ))
+        {
+            filters.FilterHQItems = filterHQ;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("High Quality: HQ items");
+        ImGui.SameLine();
+        ImGui.Text("HQ Items");
+        
+        ImGui.SameLine(150);
+        var filterCollectable = filters.FilterCollectables;
+        if (ImGui.Checkbox("##Collectables", ref filterCollectable))
+        {
+            filters.FilterCollectables = filterCollectable;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Collectables: Turn-in items");
+        ImGui.SameLine();
+        ImGui.Text("Collectables");
+        
+        ImGui.SameLine(300);
+        var filterIndisposable = filters.FilterIndisposableItems;
+        if (ImGui.Checkbox("##Indisposable", ref filterIndisposable))
+        {
+            filters.FilterIndisposableItems = filterIndisposable;
+            changed = true;
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Indisposable: Cannot be discarded");
+        ImGui.SameLine();
+        ImGui.Text("Protected");
+        
+        ImGui.EndGroup();
+        
+        if (changed)
+        {
+            Plugin.Configuration.Save();
             RefreshInventory();
+        }
+    }
+    
+    private void DrawCompactMarketSettings()
+    {
+        ImGui.Text("Market:");
+        ImGui.SameLine();
+        
+        var showPrices = Settings.ShowMarketPrices;
+        if (ImGui.Checkbox("Prices", ref showPrices))
+        {
+            Settings.ShowMarketPrices = showPrices;
+            Plugin.Configuration.Save();
         }
         
         ImGui.SameLine();
-        ImGui.Text("•");
-        
+        ImGui.Text("World:");
         ImGui.SameLine();
-        if (ImGui.Checkbox("HQ Only", ref _showOnlyHQ)) UpdateCategories();
-        
-        ImGui.SameLine();
-        if (ImGui.Checkbox("Flagged Only", ref _showOnlyFlagged)) UpdateCategories();
-        
-        // Quick safety status indicator
-        ImGui.SameLine();
-        ImGui.Text("•");
-        ImGui.SameLine();
-        var safetyStatus = GetSafetyStatusSummary();
-        ImGui.TextColored(safetyStatus.color, safetyStatus.text);
-        if (ImGui.IsItemHovered())
+        ImGui.SetNextItemWidth(100);
+        if (ImGui.BeginCombo("##World", _selectedWorld))
         {
-            ImGui.SetTooltip(safetyStatus.tooltip);
+            foreach (var world in _availableWorlds)
+            {
+                bool isSelected = world == _selectedWorld;
+                if (ImGui.Selectable(world, isSelected))
+                {
+                    _selectedWorld = world;
+                    _universalisClient.Dispose();
+                    _universalisClient = new UniversalisClient(Plugin.Log, _selectedWorld);
+                    _priceCache.Clear();
+                    foreach (var item in _allItems)
+                    {
+                        item.MarketPrice = null;
+                        item.MarketPriceFetchTime = null;
+                    }
+                }
+            }
+            ImGui.EndCombo();
+        }
+        
+        ImGui.SameLine();
+        ImGui.Text("Cache:");
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(50);
+        var cacheMinutes = Settings.PriceCacheDurationMinutes;
+        if (ImGui.InputInt("##Cache", ref cacheMinutes, 0))
+        {
+            Settings.PriceCacheDurationMinutes = Math.Max(1, cacheMinutes);
+            Plugin.Configuration.Save();
+        }
+        ImGui.SameLine();
+        ImGui.Text("min");
+        
+        ImGui.SameLine();
+        var autoRefresh = Settings.AutoRefreshPrices;
+        if (ImGui.Checkbox("Auto-refresh", ref autoRefresh))
+        {
+            Settings.AutoRefreshPrices = autoRefresh;
+            Plugin.Configuration.Save();
         }
     }
     
@@ -1249,398 +1429,15 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             return (new Vector4(0.8f, 0.2f, 0.2f, 1), "🔥 Low Safety", $"Few protections active ({activeFilters}/{totalFilters}) - BE CAREFUL!");
     }
     
-    private void DrawMarketPriceSettings(float availableWidth)
-    {
-        var showPrices = Settings.ShowMarketPrices;
-        if (ImGui.Checkbox("Show Market Prices", ref showPrices))
-        {
-            Settings.ShowMarketPrices = showPrices;
-            Plugin.Configuration.Save();
-        }
-        
-        if (!Settings.ShowMarketPrices) return;
-        
-        var spacing = ImGui.GetStyle().ItemSpacing.X;
-        var usedWidth = ImGui.CalcTextSize("Show Market Prices").X + ImGui.GetStyle().FramePadding.X * 2 + spacing;
-        
-        // Auto-refresh checkbox
-        var autoRefreshWidth = ImGui.CalcTextSize("Auto-refresh Prices").X + 20; // 20 for checkbox
-        if (availableWidth > usedWidth + autoRefreshWidth + spacing)
-        {
-            ImGui.SameLine();
-        }
-        
-        var autoRefresh = Settings.AutoRefreshPrices;
-        if (ImGui.Checkbox("Auto-refresh Prices", ref autoRefresh))
-        {
-            Settings.AutoRefreshPrices = autoRefresh;
-            Plugin.Configuration.Save();
-        }
-        
-        usedWidth += autoRefreshWidth + spacing;
-        
-        // Cache duration input
-        var cacheWidth = 100f;
-        if (availableWidth > usedWidth + cacheWidth + spacing)
-        {
-            ImGui.SameLine();
-        }
-        
-        ImGui.SetNextItemWidth(cacheWidth);
-        var cacheMinutes = Settings.PriceCacheDurationMinutes;
-        if (ImGui.InputInt("Cache (min)", ref cacheMinutes))
-        {
-            Settings.PriceCacheDurationMinutes = Math.Max(1, cacheMinutes);
-            Plugin.Configuration.Save();
-        }
-        
-        usedWidth += cacheWidth + spacing;
-        
-        // World selection
-        var worldWidth = 150f;
-        if (availableWidth > usedWidth + worldWidth + spacing)
-        {
-            ImGui.SameLine();
-        }
-        
-        ImGui.SetNextItemWidth(worldWidth);
-        if (ImGui.BeginCombo("World", _selectedWorld))
-        {
-            foreach (var world in _availableWorlds)
-            {
-                bool isSelected = world == _selectedWorld;
-                if (ImGui.Selectable(world, isSelected))
-                {
-                    _selectedWorld = world;
-                    _universalisClient.Dispose();
-                    _universalisClient = new UniversalisClient(Plugin.Log, _selectedWorld);
-                    _priceCache.Clear();
-                    foreach (var item in _allItems)
-                    {
-                        item.MarketPrice = null;
-                        item.MarketPriceFetchTime = null;
-                    }
-                }
-                if (isSelected)
-                    ImGui.SetItemDefaultFocus();
-            }
-            ImGui.EndCombo();
-        }
-    }
+    // Removed old DrawMarketPriceSettings - using compact version now
     
-    private void DrawSafetyFiltersCompact()
-    {
-        // Expanded table with clear descriptions and tags
-        if (ImGui.BeginTable("SafetyFilters", 3, ImGuiTableFlags.Borders | ImGuiTableFlags.RowBg))
-        {
-            ImGui.TableSetupColumn("Filter", ImGuiTableColumnFlags.WidthFixed, 200);
-            ImGui.TableSetupColumn("Description", ImGuiTableColumnFlags.WidthStretch);
-            ImGui.TableSetupColumn("Examples", ImGuiTableColumnFlags.WidthFixed, 150);
-            ImGui.TableHeadersRow();
-            
-            // Critical protections section
-            DrawFilterSectionHeader("🔴 CRITICAL PROTECTIONS", "Items that should NEVER be discarded");
-            DrawFilterRow("Ultimate Tokens", "Filter Ultimate Tokens", Settings.SafetyFilters.FilterUltimateTokens, 
-                         "Raid tokens, preorder earrings, special rewards", "UCOB Token, Earrings");
-            DrawFilterRow("Currency Items", "Filter Currency Items", Settings.SafetyFilters.FilterCurrencyItems, 
-                         "Gil, tomestones, MGP, and all other currencies", "Tomestones, MGP");
-            DrawFilterRow("Crystals & Shards", "Filter Crystals & Shards", Settings.SafetyFilters.FilterCrystalsAndShards, 
-                         "Crafting materials essential for synthesis", "Fire Crystals, etc.");
-            DrawFilterRow("Gearset Items", "Filter Gearset Items", Settings.SafetyFilters.FilterGearsetItems, 
-                         "Equipment currently saved in any gearset", "Equipped weapons/armor");
-            DrawFilterRow("Indisposable Items", "Filter Indisposable Items", Settings.SafetyFilters.FilterIndisposableItems, 
-                         "Items the game prevents from being discarded", "Quest rewards, etc.");
-            
-            // Optional protections section
-            DrawFilterSectionHeader("🟡 OPTIONAL PROTECTIONS", "Items that might be valuable to keep");
-            DrawFilterRow("High-Level Gear", "Filter High-Level Gear", Settings.SafetyFilters.FilterHighLevelGear, 
-                         $"Equipment above item level {Settings.SafetyFilters.MaxGearItemLevel}", $"i{Settings.SafetyFilters.MaxGearItemLevel}+ gear");
-            DrawFilterRow("Unique & Untradeable", "Filter Unique & Untradeable", Settings.SafetyFilters.FilterUniqueUntradeable, 
-                         "Most unique items that can't be reacquired", "Job quest rewards");
-            DrawFilterRow("High Quality Items", "Filter HQ Items", Settings.SafetyFilters.FilterHQItems, 
-                         "Items with superior stats or crafting quality", "HQ materials, gear");
-            DrawFilterRow("Collectables", "Filter Collectables", Settings.SafetyFilters.FilterCollectables, 
-                         "Items used for collectible turn-ins", "Collectable fish, etc.");
-            DrawFilterRow("Spiritbonded Items", "Filter Spiritbonded Items", Settings.SafetyFilters.FilterSpiritbondedItems, 
-                         $"Items with {Settings.SafetyFilters.MinSpiritbondToFilter}%+ spiritbond", "Spiritbond gear");
-            
-            ImGui.EndTable();
-        }
-        
-        ImGui.Spacing();
-        DrawGearProtectionSettings();
-    }
+    // Removed old table-based DrawSafetyFiltersCompact - using new compact grid version
     
-    private void DrawFilterSectionHeader(string title, string description)
-    {
-        ImGui.TableNextRow();
-        ImGui.TableSetColumnIndex(0);
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 1.0f, 1.0f, 1.0f));
-        ImGui.Text(title);
-        ImGui.PopStyleColor();
-        
-        ImGui.TableSetColumnIndex(1);
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.8f, 1.0f));
-        ImGui.TextWrapped(description);
-        ImGui.PopStyleColor();
-        
-        ImGui.TableSetColumnIndex(2);
-        ImGui.Text(""); // Empty examples column for headers
-    }
-    
-    private void DrawFilterRow(string displayName, string configName, bool currentValue, string description, string examples)
-    {
-        ImGui.TableNextRow();
-        
-        // Filter name with checkbox
-        ImGui.TableSetColumnIndex(0);
-        var filterValue = currentValue;
-        if (ImGui.Checkbox($"###{configName}", ref filterValue))
-        {
-            // Update the specific filter
-            var filters = Settings.SafetyFilters;
-            switch (configName)
-            {
-                case "Filter Ultimate Tokens": filters.FilterUltimateTokens = filterValue; break;
-                case "Filter Currency Items": filters.FilterCurrencyItems = filterValue; break;
-                case "Filter Crystals & Shards": filters.FilterCrystalsAndShards = filterValue; break;
-                case "Filter Gearset Items": filters.FilterGearsetItems = filterValue; break;
-                case "Filter Indisposable Items": filters.FilterIndisposableItems = filterValue; break;
-                case "Filter High-Level Gear": filters.FilterHighLevelGear = filterValue; break;
-                case "Filter Unique & Untradeable": filters.FilterUniqueUntradeable = filterValue; break;
-                case "Filter HQ Items": filters.FilterHQItems = filterValue; break;
-                case "Filter Collectables": filters.FilterCollectables = filterValue; break;
-                case "Filter Spiritbonded Items": filters.FilterSpiritbondedItems = filterValue; break;
-            }
-            Plugin.Configuration.Save();
-            RefreshInventory();
-        }
-        ImGui.SameLine();
-        
-        // Add status tag
-        if (currentValue)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.2f, 0.8f, 0.2f, 1.0f));
-            ImGui.Text("[HIDING]");
-            ImGui.PopStyleColor();
-            ImGui.SameLine();
-        }
-        else
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.8f, 0.8f, 0.2f, 1.0f));
-            ImGui.Text("[VISIBLE]");
-            ImGui.PopStyleColor();
-            ImGui.SameLine();
-        }
-        
-        ImGui.Text(displayName);
-        
-        // Description
-        ImGui.TableSetColumnIndex(1);
-        ImGui.TextWrapped(description);
-        
-        // Examples
-        ImGui.TableSetColumnIndex(2);
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.7f, 0.7f, 0.7f, 1.0f));
-        ImGui.TextWrapped(examples);
-        ImGui.PopStyleColor();
-    }
+    // Removed old filter section methods - using compact grid now
     
 
     
-    private void DrawGearProtectionSettings()
-    {
-        var filters = Settings.SafetyFilters;
-        bool changed = false;
-        
-        ImGui.Text("⚙️ Gear Protection Settings:");
-        
-        var filterHighLevel = filters.FilterHighLevelGear;
-        if (ImGui.Checkbox("Filter High-Level Gear", ref filterHighLevel))
-        {
-            filters.FilterHighLevelGear = filterHighLevel;
-            changed = true;
-        }
-        
-        if (filters.FilterHighLevelGear)
-        {
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(100);
-            var maxLevel = filters.MaxGearItemLevel;
-            if (ImGui.InputInt("Max iLevel", ref maxLevel))
-            {
-                filters.MaxGearItemLevel = Math.Max(1, maxLevel);
-                changed = true;
-            }
-        }
-        
-        if (filters.FilterSpiritbondedItems)
-        {
-            ImGui.SetNextItemWidth(100);
-            var minSpiritbond = filters.MinSpiritbondToFilter;
-            if (ImGui.InputInt("Min Spiritbond %", ref minSpiritbond))
-            {
-                filters.MinSpiritbondToFilter = Math.Max(0, Math.Min(100, minSpiritbond));
-                changed = true;
-            }
-        }
-        
-        if (changed)
-        {
-            Plugin.Configuration.Save();
-            RefreshInventory();
-        }
-    }
-    
-    private void DrawSafetyFilters()
-    {
-        ImGui.Text("Safety Filters:");
-        
-        if (ImGui.Checkbox("Show Only Flagged Items", ref _showOnlyFlagged))
-        {
-            UpdateCategories();
-        }
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Show only items with safety flags");
-        
-        if (ImGui.CollapsingHeader("Safety Protections", _showSafetyFilters ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None))
-        {
-            ImGui.Indent();
-            
-            var filters = Settings.SafetyFilters;
-            bool changed = false;
-            
-            // Core safety protections
-            ImGui.Text("Core Protections:");
-            
-            var filterUltimate = filters.FilterUltimateTokens;
-            if (ImGui.Checkbox("Filter Ultimate Tokens", ref filterUltimate))
-            {
-                filters.FilterUltimateTokens = filterUltimate;
-                changed = true;
-            }
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Prevents discarding ultimate raid tokens and preorder earrings");
-            
-            ImGui.SameLine();
-            var filterCurrency = filters.FilterCurrencyItems;
-            if (ImGui.Checkbox("Filter Currency Items", ref filterCurrency))
-            {
-                filters.FilterCurrencyItems = filterCurrency;
-                changed = true;
-            }
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Prevents discarding gil, tomestones, and other currencies");
-            
-            var filterCrystals = filters.FilterCrystalsAndShards;
-            if (ImGui.Checkbox("Filter Crystals & Shards", ref filterCrystals))
-            {
-                filters.FilterCrystalsAndShards = filterCrystals;
-                changed = true;
-            }
-            
-            ImGui.SameLine();
-            var filterGearset = filters.FilterGearsetItems;
-            if (ImGui.Checkbox("Filter Gearset Items", ref filterGearset))
-            {
-                filters.FilterGearsetItems = filterGearset;
-                changed = true;
-            }
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Prevents discarding items equipped in any gearset");
-            
-            var filterIndisposable = filters.FilterIndisposableItems;
-            if (ImGui.Checkbox("Filter Indisposable Items", ref filterIndisposable))
-            {
-                filters.FilterIndisposableItems = filterIndisposable;
-                changed = true;
-            }
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Items the game explicitly marks as non-discardable");
-            
-            ImGui.Spacing();
-            
-            // Gear protection
-            ImGui.Text("Gear Protection:");
-            var filterHighLevel = filters.FilterHighLevelGear;
-            if (ImGui.Checkbox("Filter High-Level Gear", ref filterHighLevel))
-            {
-                filters.FilterHighLevelGear = filterHighLevel;
-                changed = true;
-            }
-            
-            if (filters.FilterHighLevelGear)
-            {
-                ImGui.SameLine();
-                ImGui.SetNextItemWidth(100);
-                var maxLevel = filters.MaxGearItemLevel;
-                if (ImGui.InputInt("Max iLevel", ref maxLevel))
-                {
-                    filters.MaxGearItemLevel = maxLevel;
-                    changed = true;
-                }
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Gear above this item level will be protected");
-            }
-            
-            var filterUnique = filters.FilterUniqueUntradeable;
-            if (ImGui.Checkbox("Filter Unique & Untradeable", ref filterUnique))
-            {
-                filters.FilterUniqueUntradeable = filterUnique;
-                changed = true;
-            }
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Prevents discarding most unique and untradeable items");
-            
-            ImGui.Spacing();
-            
-            // Quality filters
-            ImGui.Text("Quality & Enhancement:");
-            var filterHQ = filters.FilterHQItems;
-            if (ImGui.Checkbox("Filter HQ Items", ref filterHQ))
-            {
-                filters.FilterHQItems = filterHQ;
-                changed = true;
-            }
-            
-            ImGui.SameLine();
-            var filterCollectable = filters.FilterCollectables;
-            if (ImGui.Checkbox("Filter Collectables", ref filterCollectable))
-            {
-                filters.FilterCollectables = filterCollectable;
-                changed = true;
-            }
-            
-            var filterSpiritbond = filters.FilterSpiritbondedItems;
-            if (ImGui.Checkbox("Filter Spiritbonded Items", ref filterSpiritbond))
-            {
-                filters.FilterSpiritbondedItems = filterSpiritbond;
-                changed = true;
-            }
-            
-            if (filters.FilterSpiritbondedItems)
-            {
-                ImGui.SameLine();
-                ImGui.SetNextItemWidth(80);
-                var minSpiritbond = filters.MinSpiritbondToFilter;
-                if (ImGui.InputInt("Min %", ref minSpiritbond))
-                {
-                    filters.MinSpiritbondToFilter = minSpiritbond;
-                    changed = true;
-                }
-                if (ImGui.IsItemHovered())
-                    ImGui.SetTooltip("Items with spiritbond >= this value will be protected");
-            }
-            
-            if (changed)
-            {
-                Plugin.Configuration.Save();
-                RefreshInventory();
-            }
-            
-            ImGui.Unindent();
-        }
-    }
+    // Removed old filter methods - now using compact grid layout
     
     private void DrawItemSafetyFlags(InventoryItemInfo item)
     {
@@ -2065,56 +1862,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     
     private void DrawActionButtons()
     {
-        ImGui.Separator();
-        
-        var availableWidth = ImGui.GetContentRegionAvail().X;
-        var spacing = ImGui.GetStyle().ItemSpacing.X;
-        
-        // Calculate button widths
-        var clearWidth = ImGui.CalcTextSize("Clear Selection").X + ImGui.GetStyle().FramePadding.X * 2;
-        var discardText = _selectedItems.Count > 0 ? $"Discard Selected ({_selectedItems.Count})" : "Discard Selected (0)";
-        var discardWidth = ImGui.CalcTextSize(discardText).X + ImGui.GetStyle().FramePadding.X * 2;
-        
-        var totalButtonWidth = clearWidth + discardWidth + spacing;
-        
-        // Center buttons if there's enough space, otherwise let them wrap
-        if (availableWidth > totalButtonWidth)
-        {
-            var centerOffset = (availableWidth - totalButtonWidth) * 0.5f;
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + centerOffset);
-        }
-        
-        // Clear Selection button
-        if (ImGui.Button("Clear Selection"))
-        {
-            _selectedItems.Clear();
-            foreach (var item in _allItems)
-            {
-                item.IsSelected = false;
-            }
-        }
-        
-        // Discard button
-        if (availableWidth > totalButtonWidth)
-        {
-            ImGui.SameLine();
-        }
-        
-        if (_selectedItems.Count > 0)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.8f, 0.2f, 0.2f, 1));
-            if (ImGui.Button(discardText))
-            {
-                PrepareDiscard();
-            }
-            ImGui.PopStyleColor();
-        }
-        else
-        {
-            ImGui.BeginDisabled();
-            ImGui.Button(discardText);
-            ImGui.EndDisabled();
-        }
+        // No separator - buttons will be inline with tabs
     }
     
     private string GetContainerDisplayName(InventoryType container)
