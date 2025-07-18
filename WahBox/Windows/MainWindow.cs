@@ -50,8 +50,8 @@ public class MainWindow : Window, IDisposable
 
     public override void Draw()
     {
-        // Tab bar
-        if (ImGui.BeginTabBar("MainTabs"))
+        // Tab bar - force new order with different ID to bypass ImGui caching
+        if (ImGui.BeginTabBar("MainTabsV2"))
         {
             if (ImGui.BeginTabItem("Tracking"))
             {
