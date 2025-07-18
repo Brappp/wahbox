@@ -54,6 +54,9 @@ public partial class InventoryManagementModule
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1), "[HQ]");
         }
         
+        // Safety flags
+        DrawItemSafetyFlags(item);
+        
         // Quantity
         ImGui.TableNextColumn();
         ImGui.Text(item.Quantity.ToString());
@@ -66,24 +69,18 @@ public partial class InventoryManagementModule
         {
             // Unit price
             ImGui.TableNextColumn();
-            if (item.MarketPriceLoading)
+            var priceText = item.GetFormattedPrice();
+            if (priceText == "N/A")
             {
-                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "Loading...");
+                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), priceText);
             }
-            else if (item.MarketPrice.HasValue)
+            else if (priceText != "---")
             {
-                if (item.MarketPrice.Value == -1)
-                {
-                    ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "N/A");
-                }
-                else
-                {
-                    ImGui.Text($"{item.MarketPrice.Value:N0}g");
-                }
+                ImGui.Text(priceText);
             }
             else
             {
-                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), "---");
+                ImGui.TextColored(new Vector4(0.5f, 0.5f, 0.5f, 1), priceText);
                 
                 // Only show fetch button if not already loading
                 if (!_fetchingPrices.Contains(item.ItemId))

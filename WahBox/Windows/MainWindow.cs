@@ -370,34 +370,10 @@ public class MainWindow : Window, IDisposable
 
         if (!specialModules.Any()) return;
 
-        // Handle inventory module specially
-        var inventoryModule = specialModules.FirstOrDefault(m => m.Name == "Inventory Manager");
+        // Exclude inventory module as it has its own dedicated tab
         var otherSpecialModules = specialModules.Where(m => m.Name != "Inventory Manager").ToList();
 
-        // Draw inventory module with full interface
-        if (inventoryModule != null)
-        {
-            if (DrawSectionHeader("Inventory", "InventorySection"))
-            {
-                if (inventoryModule is IDrawable drawable)
-                {
-                    drawable.Draw();
-                }
-                else
-                {
-                    ImGui.Indent();
-                    DrawTaskModule(inventoryModule);
-                    ImGui.Unindent();
-                }
-            }
-            
-            if (otherSpecialModules.Any())
-            {
-                ImGui.Spacing();
-            }
-        }
-
-        // Draw other special modules in task style
+        // Draw special modules in task style
         if (otherSpecialModules.Any())
         {
             if (DrawSectionHeader("Special", "SpecialTasks"))

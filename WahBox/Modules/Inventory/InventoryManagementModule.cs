@@ -60,6 +60,11 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     private bool _showArmory = false;
     private bool _showOnlyHQ = false;
     private bool _showOnlyDiscardable = true; // Default to showing only discardable items for safety
+    
+    // Safety filter options
+    private bool _showSafetyFilters = true;
+    private bool _showOnlyFlagged = false;
+    
     private string _selectedWorld = "";
     private List<string> _availableWorlds = new();
     private bool _filtersExpanded = true; // Show filters by default
@@ -254,7 +259,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
     
     private void DrawCategoryControls(CategoryGroup category)
     {
-        var discardableItems = category.Items.Where(i => InventoryHelpers.IsSafeToDiscard(i, Settings.BlacklistedItems)).ToList();
+        var discardableItems = category.Items.Where(i => i.SafetyAssessment?.IsSafeToDiscard == true).ToList();
         var selectedInCategory = category.Items.Count(i => _selectedItems.Contains(i.ItemId));
         var allSelectedInCategory = discardableItems.Count > 0 && discardableItems.All(i => _selectedItems.Contains(i.ItemId));
         
@@ -632,9 +637,11 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         _originalItems = _inventoryHelpers.GetAllItems(_showArmory, false); // Always false for saddlebag
         _allItems = _originalItems; // For compatibility, keep _allItems pointing to the same list
         
-        // Update market prices from cache
+        // Assess safety for all items and update market prices from cache
         foreach (var item in _allItems)
         {
+            item.SafetyAssessment = InventoryHelpers.AssessItemSafety(item, Settings);
+            
             if (_priceCache.TryGetValue(item.ItemId, out var cached))
             {
                 item.MarketPrice = cached.price;
@@ -668,7 +675,12 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         
         if (_showOnlyDiscardable)
         {
-            filteredItems = filteredItems.Where(i => InventoryHelpers.IsSafeToDiscard(i, Settings.BlacklistedItems));
+            filteredItems = filteredItems.Where(i => i.SafetyAssessment?.IsSafeToDiscard == true);
+        }
+        
+        if (_showOnlyFlagged)
+        {
+            filteredItems = filteredItems.Where(i => i.SafetyAssessment?.SafetyFlags.Any() == true);
         }
             
         _categories = filteredItems
@@ -699,7 +711,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
                             CategoryName = first.CategoryName,
                             ItemUICategory = first.ItemUICategory,
                             MarketPrice = first.MarketPrice,
-                            MarketPriceLoading = first.MarketPriceLoading,
+                            // MarketPriceLoading is tracked via _fetchingPrices set
                             MarketPriceFetchTime = first.MarketPriceFetchTime,
                             IsSelected = first.IsSelected
                         };
@@ -738,7 +750,12 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         
         if (_showOnlyDiscardable)
         {
-            filteredItems = filteredItems.Where(i => InventoryHelpers.IsSafeToDiscard(i, Settings.BlacklistedItems));
+            filteredItems = filteredItems.Where(i => i.SafetyAssessment?.IsSafeToDiscard == true);
+        }
+        
+        if (_showOnlyFlagged)
+        {
+            filteredItems = filteredItems.Where(i => i.SafetyAssessment?.SafetyFlags.Any() == true);
         }
         
         return filteredItems.ToList();
@@ -758,7 +775,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             var stuckItemInfo = _allItems.FirstOrDefault(i => i.ItemId == stuckItem);
             if (stuckItemInfo != null)
             {
-                stuckItemInfo.MarketPriceLoading = false;
+                // MarketPriceLoading is tracked via _fetchingPrices set - no need to set
                 stuckItemInfo.MarketPrice = -1; // Use -1 to indicate "N/A" state
                 _priceCache[stuckItem] = (-1, DateTime.Now); // Cache the N/A result
             }
@@ -774,7 +791,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         
         _fetchingPrices.Add(item.ItemId);
         _fetchStartTimes[item.ItemId] = DateTime.Now;
-        item.MarketPriceLoading = true;
+                    // MarketPriceLoading is tracked via _fetchingPrices set
         
         try
         {
@@ -804,7 +821,7 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         {
             _fetchingPrices.Remove(item.ItemId);
             _fetchStartTimes.Remove(item.ItemId);
-            item.MarketPriceLoading = false;
+                            // MarketPriceLoading is tracked via _fetchingPrices set
         }
     }
     
@@ -1138,6 +1155,10 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
         ImGui.SameLine();
         if (ImGui.Checkbox("Discardable Only", ref _showOnlyDiscardable)) UpdateCategories();
         
+        // Safety filters section
+        ImGui.Separator();
+        DrawSafetyFilters();
+        
         // Market price settings
         ImGui.Separator();
         DrawMarketPriceSettings(availableWidth);
@@ -1220,6 +1241,198 @@ public partial class InventoryManagementModule : BaseModule, IDrawable
             }
             ImGui.EndCombo();
         }
+    }
+    
+    private void DrawSafetyFilters()
+    {
+        ImGui.Text("Safety Filters:");
+        
+        if (ImGui.Checkbox("Show Only Flagged Items", ref _showOnlyFlagged))
+        {
+            UpdateCategories();
+        }
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Show only items with safety flags");
+        
+        if (ImGui.CollapsingHeader("Safety Protections", _showSafetyFilters ? ImGuiTreeNodeFlags.DefaultOpen : ImGuiTreeNodeFlags.None))
+        {
+            ImGui.Indent();
+            
+            var filters = Settings.SafetyFilters;
+            bool changed = false;
+            
+            // Core safety protections
+            ImGui.Text("Core Protections:");
+            
+            var filterUltimate = filters.FilterUltimateTokens;
+            if (ImGui.Checkbox("Filter Ultimate Tokens", ref filterUltimate))
+            {
+                filters.FilterUltimateTokens = filterUltimate;
+                changed = true;
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Prevents discarding ultimate raid tokens and preorder earrings");
+            
+            ImGui.SameLine();
+            var filterCurrency = filters.FilterCurrencyItems;
+            if (ImGui.Checkbox("Filter Currency Items", ref filterCurrency))
+            {
+                filters.FilterCurrencyItems = filterCurrency;
+                changed = true;
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Prevents discarding gil, tomestones, and other currencies");
+            
+            var filterCrystals = filters.FilterCrystalsAndShards;
+            if (ImGui.Checkbox("Filter Crystals & Shards", ref filterCrystals))
+            {
+                filters.FilterCrystalsAndShards = filterCrystals;
+                changed = true;
+            }
+            
+            ImGui.SameLine();
+            var filterGearset = filters.FilterGearsetItems;
+            if (ImGui.Checkbox("Filter Gearset Items", ref filterGearset))
+            {
+                filters.FilterGearsetItems = filterGearset;
+                changed = true;
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Prevents discarding items equipped in any gearset");
+            
+            var filterIndisposable = filters.FilterIndisposableItems;
+            if (ImGui.Checkbox("Filter Indisposable Items", ref filterIndisposable))
+            {
+                filters.FilterIndisposableItems = filterIndisposable;
+                changed = true;
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Items the game explicitly marks as non-discardable");
+            
+            ImGui.Spacing();
+            
+            // Gear protection
+            ImGui.Text("Gear Protection:");
+            var filterHighLevel = filters.FilterHighLevelGear;
+            if (ImGui.Checkbox("Filter High-Level Gear", ref filterHighLevel))
+            {
+                filters.FilterHighLevelGear = filterHighLevel;
+                changed = true;
+            }
+            
+            if (filters.FilterHighLevelGear)
+            {
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(100);
+                var maxLevel = filters.MaxGearItemLevel;
+                if (ImGui.InputInt("Max iLevel", ref maxLevel))
+                {
+                    filters.MaxGearItemLevel = maxLevel;
+                    changed = true;
+                }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Gear above this item level will be protected");
+            }
+            
+            var filterUnique = filters.FilterUniqueUntradeable;
+            if (ImGui.Checkbox("Filter Unique & Untradeable", ref filterUnique))
+            {
+                filters.FilterUniqueUntradeable = filterUnique;
+                changed = true;
+            }
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Prevents discarding most unique and untradeable items");
+            
+            ImGui.Spacing();
+            
+            // Quality filters
+            ImGui.Text("Quality & Enhancement:");
+            var filterHQ = filters.FilterHQItems;
+            if (ImGui.Checkbox("Filter HQ Items", ref filterHQ))
+            {
+                filters.FilterHQItems = filterHQ;
+                changed = true;
+            }
+            
+            ImGui.SameLine();
+            var filterCollectable = filters.FilterCollectables;
+            if (ImGui.Checkbox("Filter Collectables", ref filterCollectable))
+            {
+                filters.FilterCollectables = filterCollectable;
+                changed = true;
+            }
+            
+            var filterSpiritbond = filters.FilterSpiritbondedItems;
+            if (ImGui.Checkbox("Filter Spiritbonded Items", ref filterSpiritbond))
+            {
+                filters.FilterSpiritbondedItems = filterSpiritbond;
+                changed = true;
+            }
+            
+            if (filters.FilterSpiritbondedItems)
+            {
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(80);
+                var minSpiritbond = filters.MinSpiritbondToFilter;
+                if (ImGui.InputInt("Min %", ref minSpiritbond))
+                {
+                    filters.MinSpiritbondToFilter = minSpiritbond;
+                    changed = true;
+                }
+                if (ImGui.IsItemHovered())
+                    ImGui.SetTooltip("Items with spiritbond >= this value will be protected");
+            }
+            
+            if (changed)
+            {
+                Plugin.Configuration.Save();
+                RefreshInventory();
+            }
+            
+            ImGui.Unindent();
+        }
+    }
+    
+    private void DrawItemSafetyFlags(InventoryItemInfo item)
+    {
+        if (item.SafetyAssessment?.SafetyFlags.Any() != true)
+            return;
+        
+        ImGui.SameLine();
+        
+        var flagColor = item.SafetyAssessment.FlagColor switch
+        {
+            SafetyFlagColor.Critical => new Vector4(0.8f, 0.2f, 0.2f, 1), // Red
+            SafetyFlagColor.Warning => new Vector4(0.9f, 0.5f, 0.1f, 1),  // Orange
+            SafetyFlagColor.Caution => new Vector4(0.9f, 0.9f, 0.2f, 1),  // Yellow
+            SafetyFlagColor.Info => new Vector4(0.3f, 0.7f, 1.0f, 1),     // Blue
+            _ => ImGui.GetStyle().Colors[(int)ImGuiCol.Text]
+        };
+        
+        ImGui.PushStyleColor(ImGuiCol.Text, flagColor);
+        
+        var flagText = string.Join(", ", item.SafetyAssessment.SafetyFlags);
+        ImGui.Text($"[{flagText}]");
+        
+        if (ImGui.IsItemHovered())
+        {
+            ImGui.BeginTooltip();
+            ImGui.Text("Safety Assessment:");
+            foreach (var flag in item.SafetyAssessment.SafetyFlags)
+            {
+                ImGui.BulletText(flag);
+            }
+            
+            if (!item.SafetyAssessment.IsSafeToDiscard)
+            {
+                ImGui.Separator();
+                ImGui.TextColored(new Vector4(0.8f, 0.2f, 0.2f, 1), "This item is protected from discarding");
+            }
+            
+            ImGui.EndTooltip();
+        }
+        
+        ImGui.PopStyleColor();
     }
     
     private void DrawActionButtons()

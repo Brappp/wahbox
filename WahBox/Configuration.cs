@@ -143,7 +143,35 @@ public class InventorySettings
     public bool RequireConfirmation { get; set; } = true;
     public bool SafeMode { get; set; } = true; // Prevents discarding HQ, spiritbonded, etc.
     
+    // Safety Filter Settings (default enabled for safety)
+    public SafetyFilters SafetyFilters { get; set; } = new();
+    
     // UI settings
     public Dictionary<uint, bool> ExpandedCategories { get; set; } = new();
     public string LastSearchFilter { get; set; } = string.Empty;
+}
+
+public class SafetyFilters
+{
+    // Core safety filters - enabled by default
+    public bool FilterUltimateTokens { get; set; } = true;
+    public bool FilterPreorderEarrings { get; set; } = true;
+    public bool FilterCurrencyItems { get; set; } = true;
+    public bool FilterCrystalsAndShards { get; set; } = true;
+    public bool FilterUniqueUntradeable { get; set; } = true;
+    public bool FilterIndisposableItems { get; set; } = true;
+    public bool FilterGearsetItems { get; set; } = true;
+    
+    // Item level protection
+    public bool FilterHighLevelGear { get; set; } = true;
+    public int MaxGearItemLevel { get; set; } = 45; // Same as ARDiscard default
+    
+    // Quality and enhancement filters
+    public bool FilterHQItems { get; set; } = false; // Allow HQ by default for flexibility
+    public bool FilterCollectables { get; set; } = true;
+    public bool FilterSpiritbondedItems { get; set; } = true;
+    public int MinSpiritbondToFilter { get; set; } = 1; // Any spiritbond
+    
+    // Calamity Salvager items are safer to discard
+    public bool AllowCalamitySalvagerItems { get; set; } = true;
 }
