@@ -48,13 +48,17 @@ public partial class InventoryManagementModule
         }
         
         ImGui.Text(item.Name);
+        
+        // Add filter tags right after item name
+        DrawItemFilterTags(item);
+        
         if (item.IsHQ)
         {
             ImGui.SameLine();
             ImGui.TextColored(new Vector4(0.2f, 0.8f, 0.2f, 1), "[HQ]");
         }
         
-        // Safety flags
+        // Safety flags (keep for additional info)
         DrawItemSafetyFlags(item);
         
         // Quantity
@@ -119,7 +123,11 @@ public partial class InventoryManagementModule
             // Status column
             ImGui.TableNextColumn();
             
-            if (!item.CanBeDiscarded)
+            if (!item.CanBeTraded)
+            {
+                ImGui.TextColored(new Vector4(0.8f, 0.2f, 0.2f, 1), "Not Tradeable");
+            }
+            else if (!item.CanBeDiscarded)
             {
                 ImGui.TextColored(new Vector4(0.8f, 0.2f, 0.2f, 1), "Not Discardable");
             }

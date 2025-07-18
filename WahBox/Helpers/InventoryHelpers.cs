@@ -15,7 +15,7 @@ public unsafe class InventoryHelpers
     private readonly IPluginLog _log;
     
     // ARDiscard-level safety lists
-    private static readonly HashSet<uint> HardcodedBlacklist = new()
+    public static readonly HashSet<uint> HardcodedBlacklist = new()
     {
         // Preorder earrings
         16039, // Ala Mhigan earrings
@@ -36,11 +36,11 @@ public unsafe class InventoryHelpers
     };
     
     // Add currency range (1-99) to blacklist
-    private static readonly HashSet<uint> CurrencyRange = 
+    public static readonly HashSet<uint> CurrencyRange = 
         Enumerable.Range(1, 99).Select(x => (uint)x).ToHashSet();
     
     // Items that are safe to discard despite being unique/untradeable
-    private static readonly HashSet<uint> SafeUniqueItems = new()
+    public static readonly HashSet<uint> SafeUniqueItems = new()
     {
         2962, // Onion Doublet
         3279, // Onion Gaskins
@@ -366,7 +366,7 @@ public unsafe class InventoryHelpers
         return AssessItemSafety(item, settings).IsSafeToDiscard;
     }
     
-    private static unsafe bool IsInGearset(uint itemId)
+    public static unsafe bool IsInGearset(uint itemId)
     {
         var gearsetModule = RaptureGearsetModule.Instance();
         if (gearsetModule == null) return false;
