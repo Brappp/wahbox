@@ -436,22 +436,58 @@ public class MainWindow : Window, IDisposable
         ImGui.BeginGroup();
         
         // Icon and name (similar to currency modules)
-        if (module.IconId > 0)
+        // Reserve consistent space for icon
+        var iconStartPos = ImGui.GetCursorPos();
+        
+        if (module.Type == ModuleType.Daily || module.Type == ModuleType.Weekly || module.Type == ModuleType.Special)
         {
+            // Use FontAwesome icons for consistency
+            ImGui.PushFont(UiBuilder.IconFont);
+            var iconColor = module.Type switch
+            {
+                ModuleType.Daily => new Vector4(0.7f, 0.8f, 1.0f, 1),    // Light blue
+                ModuleType.Weekly => new Vector4(0.8f, 0.7f, 1.0f, 1),   // Light purple
+                ModuleType.Special => new Vector4(1.0f, 0.9f, 0.5f, 1),  // Gold
+                _ => new Vector4(1, 1, 1, 1)
+            };
+            var icon = module.Type switch
+            {
+                ModuleType.Daily => FontAwesomeIcon.CalendarDay,
+                ModuleType.Weekly => FontAwesomeIcon.CalendarWeek,
+                ModuleType.Special => FontAwesomeIcon.Star,
+                _ => FontAwesomeIcon.Tasks
+            };
+            ImGui.TextColored(iconColor, icon.ToIconString());
+            ImGui.PopFont();
+        }
+        else if (module.IconId > 0)
+        {
+            // Use game icons for other module types
             try
             {
                 var icon = Plugin.TextureProvider.GetFromGameIcon(module.IconId).GetWrapOrEmpty();
                 if (icon != null && icon.ImGuiHandle != IntPtr.Zero)
                 {
                     ImGui.Image(icon.ImGuiHandle, new Vector2(20, 20));
-                    ImGui.SameLine();
+                }
+                else
+                {
+                    ImGui.Dummy(new Vector2(20, 20)); // Reserve space
                 }
             }
             catch
             {
-                // Skip broken icons gracefully
+                ImGui.Dummy(new Vector2(20, 20)); // Reserve space on error
             }
         }
+        else
+        {
+            ImGui.Dummy(new Vector2(20, 20)); // Reserve space for alignment
+        }
+        
+        // Move to consistent position after icon
+        ImGui.SameLine();
+        ImGui.SetCursorPosX(iconStartPos.X + 25);
         
         // Enable checkbox
         var enabled = module.IsEnabled;
