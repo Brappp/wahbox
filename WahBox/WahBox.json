@@ -2,15 +2,19 @@
   "Author": "Your Name",
   "Name": "WahBox",
   "InternalName": "WahBox",
-  "Punchline": "A whole lot of wah",
-  "Description": "A collection of crap",
+  "Punchline": "Currency alerts, daily/weekly trackers, and utilities",
+  "Description": "Track currencies, daily/weekly duties, retainer ventures, treasure maps, and more. For travel features, see the WahMaps plugin.",
   "IconUrl": "https://raw.githubusercontent.com/Brappp/wahbox/master/Data/wah.png",
   "RepoUrl": "https://github.com/Brappp/wahbox",
   "ApplicableVersion": "any",
   "Tags": [
-    "wah"
+    "currency",
+    "daily",
+    "weekly",
+    "tracker",
+    "utilities"
   ],
   "CategoryTags": [
-    "wah"
+    "utility"
   ]
 }
